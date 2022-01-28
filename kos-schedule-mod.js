@@ -52,7 +52,7 @@ const setRowHeights = function(heights)
  * @param {number} dayOfWeek integer (0-4) representing the day of the week
  * @param {number} offsetTop offset within row with non-standard height (useful for conflicting classes)
  * @param {Array<number>} rowHeights array containing the height multipliers of individual rows (see setRowHeights)
- * @returns 
+ * @returns the style string
  */
 const createStyleFromTime = function(timeString, dayOfWeek, offsetTop, rowHeights)
 {
