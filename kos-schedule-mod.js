@@ -44,6 +44,16 @@ const setRowHeights = function(heights)
     return true;
 };
 
+/**
+ * Given information about the ticket, cook up a style string that correctly places
+ * the ticket element in the schedule grid.
+ * 
+ * @param {string} timeString string in the format "HH:MM - HH:MM"
+ * @param {number} dayOfWeek integer (0-4) representing the day of the week
+ * @param {number} offsetTop offset within row with non-standard height (useful for conflicting classes)
+ * @param {Array<number>} rowHeights array containing the height multipliers of individual rows (see setRowHeights)
+ * @returns 
+ */
 const createStyleFromTime = function(timeString, dayOfWeek, offsetTop, rowHeights)
 {
     // check string format
