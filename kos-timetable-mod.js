@@ -84,7 +84,7 @@ class TimetableMod
      * feel free to use method __addClassStyleInternal(className, borderColour, backgroundColour).
      * 
      * @param {string} className css-compatible class name (unique if possible)
-     * @param {number} colourHue colour (hue) to use for this class (0-255).
+     * @param {number} colourHue colour (hue) to use for this class (0-360).
      */
     addClassStyle(className, colourHue)
     {
