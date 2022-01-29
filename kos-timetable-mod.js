@@ -26,6 +26,7 @@ class TimetableMod
             return false;
         ticket.parentNode.removeChild(ticket);
         this.addedTickets = this.addedTickets.filter((e) => {e != ticket});
+        return true;
     }
 
     /**
