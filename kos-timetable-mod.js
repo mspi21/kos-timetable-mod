@@ -20,6 +20,11 @@ class TimetableMod
         document.head.appendChild(this.customStylesheet);
     }
 
+    hyphensToNdashes()
+    {
+        document.querySelectorAll('.ticket-header > .overflow-hidden').forEach((e) => { e.innerHTML = e.innerHTML.replace(' - ', '&ndash;') });
+    }
+
     deleteTicket(ticket)
     {
         if(!this.addedTickets.includes(ticket))

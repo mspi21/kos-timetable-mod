@@ -88,6 +88,9 @@ The constructor takes one parameter, the `locale`. This is only used for even / 
 ### addedTickets
 Array of DOM elements added by TimetableMod. Useful to quickly access and/or delete created tickets.
 
+### hyphensToNdashes()
+Simply changes all timespan text from "HH:MM - HH:MM" to "HH:MM&ndash;HH:MM", just like it _should_ be.
+
 ### setRowHeights(heights)
 Resizes the rows of the schedule to the numbers given in the parameter.
 
