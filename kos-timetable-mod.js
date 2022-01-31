@@ -108,17 +108,17 @@ class TimetableMod
     __createStyleFromTimeInternal(timeString, dayOfWeek, offsetTop)
     {
         // check string format
-        if(!/^[1-2]?[0-9]:[0-5][0-9] - [1-2]?[0-9]:[0-5][0-9]$/.test(timeString))
+        if(!/^[0-2]?[0-9]:[0-5][0-9] - [0-2]?[0-9]:[0-5][0-9]$/.test(timeString))
             return "";
 
         //rowHeights.forEach((value, index, array) => {if(index > 0) array[index] += array[index - 1];});
         const rowHeights = [1, 2, 3, 4, 5];
         const rowBaseHeight = Number.parseFloat(getComputedStyle(document.querySelector(".schedule-grid")).getPropertyValue('--row-height'));
 
-        const startingHour = Number(/^[1-2]?[0-9]/.exec(timeString));
-        const startingMinute = Number(/^[1-2]?[0-9]:([0-5][0-9])/.exec(timeString)[1]);
-        const endingHour = Number(/^[1-2]?[0-9]:[0-5][0-9] - ([1-2]?[0-9])/.exec(timeString)[1]);
-        const endingMinute = Number(/^[1-2]?[0-9]:[0-5][0-9] - [1-2]?[0-9]:([0-5][0-9])/.exec(timeString)[1]);
+        const startingHour = Number(/^[0-2]?[0-9]/.exec(timeString));
+        const startingMinute = Number(/^[0-2]?[0-9]:([0-5][0-9])/.exec(timeString)[1]);
+        const endingHour = Number(/^[0-2]?[0-9]:[0-5][0-9] - ([0-2]?[0-9])/.exec(timeString)[1]);
+        const endingMinute = Number(/^[0-2]?[0-9]:[0-5][0-9] - [0-2]?[0-9]:([0-5][0-9])/.exec(timeString)[1]);
 
         let startingColumn = 2 + (startingHour - 7);
         let endingColumn = 2 + (endingHour - 7);
