@@ -318,3 +318,121 @@ class TimetableMod
         this.addedTickets.push(eventBaseWrapper);
     };
 }
+
+// GUI class
+
+class TimetableModGuiScreen
+{
+    constructor(gui)
+    {
+        this.gui = gui;
+        this.element = document.createElement('div');
+        this.element.style = "display: flex; flex-direction: column; padding: 1em;";
+    }
+
+    addElement(type, innerHTML, clickCallback, attributes = [])
+    {
+        const element = document.createElement(type);
+        element.innerHTML = innerHTML;
+        element.addEventListener('click', clickCallback);
+
+        if(attributes)
+            for(let i = 0; i < attributes.length; i++)
+                element.setAttribute(attributes[i].name, attributes[i].value);
+
+        this.element.appendChild(element);
+    }
+}
+
+class TimetableModGui
+{
+    constructor()
+    {
+        this.mod = new TimetableMod('CZE');
+        this.css = `
+            .kos-timetable-mod-gui { width: 400px; position: fixed; bottom: 25px; right: 25px; background-color: white; border: 2px solid #0065bd; }
+            .kos-timetable-mod-gui > div > * { margin-bottom: 0.25em; }
+        `;
+
+        this.screenMain = new TimetableModGuiScreen(this);
+        this.screenMain.addElement('button', 'Add ticket', () => { this.switchScreen(this.screenAddTicket); });
+        this.screenMain.addElement('button', 'Add course type', () => { this.switchScreen(this.screenAddCourseType); });
+        this.screenMain.addElement('button', 'Rename course', () => { this.switchScreen(this.screenRenameCourse); });
+        this.screenMain.addElement('button', 'Edit tickets', () => { this.switchScreen(this.screenEditTickets); });
+        this.screenMain.addElement('button', 'Set row heights', () => { this.switchScreen(this.screenSetRowHeights); });
+        this.screenMain.addElement('button', 'Save layout as javascript', () => {  });
+        this.screenMain.addElement('button', 'Load saved javascript', () => {  });
+
+        this.screenAddTicket = new TimetableModGuiScreen(this);
+        this.screenAddTicket.addElement('label', 'Name:', null);
+        this.screenAddTicket.addElement('input', '', null, [{name: 'id', value: 'screenAddTicket_Name'}]);
+        this.screenAddTicket.addElement('label', 'Teacher:', null);
+        this.screenAddTicket.addElement('input', '', null);
+        this.screenAddTicket.addElement('label', 'Time:', null);
+        this.screenAddTicket.addElement('input', '', null, [{name: 'placeholder', value: '(H)H:MM-(H)H:MM'}]);
+        this.screenAddTicket.addElement('hr', '', null);
+        this.screenAddTicket.addElement('button', 'Go back', () => { this.switchScreen(this.screenMain); });
+        this.screenAddTicket.addElement('button', 'Add ticket', () => { /* this.mod.addTicket() ...*/ });
+
+        this.screenAddCourseType = new TimetableModGuiScreen(this);
+        this.screenAddCourseType.addElement('label', 'CSS compliant class name:', null);
+        this.screenAddCourseType.addElement('input', '', null);
+        this.screenAddCourseType.addElement('label', 'Background colour:', null);
+        this.screenAddCourseType.addElement('input', '', null, [{name: 'type', value: 'color'}]);
+        this.screenAddCourseType.addElement('label', 'Accent colour:', null);
+        this.screenAddCourseType.addElement('input', '', null, [{name: 'type', value: 'color'}]);
+        this.screenAddCourseType.addElement('hr', '', null);
+        this.screenAddCourseType.addElement('button', 'Go back', () => { this.switchScreen(this.screenMain); });
+        this.screenAddCourseType.addElement('button', 'Add style', () => { /* this.mod.addClassStyle() ...*/ });
+
+        this.screenRenameCourse = new TimetableModGuiScreen(this);
+        this.screenRenameCourse.addElement('label', 'Rename from:', null);
+        this.screenRenameCourse.addElement('input', '', null);
+        this.screenRenameCourse.addElement('label', 'Rename to:', null);
+        this.screenRenameCourse.addElement('input', '', null);
+        this.screenRenameCourse.addElement('hr', '', null);
+        this.screenRenameCourse.addElement('button', 'Go back', () => { this.switchScreen(this.screenMain); });
+        this.screenRenameCourse.addElement('button', 'Rename course', () => { /* this.mod.renameCourse() ...*/ });
+        
+        this.screenEditTickets = new TimetableModGuiScreen(this);
+        this.screenEditTickets.addElement('span', '[ TODO ]', null);
+        this.screenEditTickets.addElement('hr', '', null);
+        this.screenEditTickets.addElement('button', 'Go back', () => { this.switchScreen(this.screenMain); });
+
+        this.screenSetRowHeights = new TimetableModGuiScreen(this);
+        this.screenSetRowHeights.addElement('label', 'Monday:', null);
+        this.screenSetRowHeights.addElement('input', '', null, [{name: 'type', value: 'number'}, {name: 'min', value: 1}, {name: 'max', value: 4}, {name: 'value', value: 1}]);
+        this.screenSetRowHeights.addElement('label', 'Tuesday:', null);
+        this.screenSetRowHeights.addElement('input', '', null, [{name: 'type', value: 'number'}, {name: 'min', value: 1}, {name: 'max', value: 4}, {name: 'value', value: 1}]);
+        this.screenSetRowHeights.addElement('label', 'Wednesday:', null);
+        this.screenSetRowHeights.addElement('input', '', null, [{name: 'type', value: 'number'}, {name: 'min', value: 1}, {name: 'max', value: 4}, {name: 'value', value: 1}]);
+        this.screenSetRowHeights.addElement('label', 'Thursday:', null);
+        this.screenSetRowHeights.addElement('input', '', null, [{name: 'type', value: 'number'}, {name: 'min', value: 1}, {name: 'max', value: 4}, {name: 'value', value: 1}]);
+        this.screenSetRowHeights.addElement('label', 'Friday:', null);
+        this.screenSetRowHeights.addElement('input', '', null, [{name: 'type', value: 'number'}, {name: 'min', value: 1}, {name: 'max', value: 4}, {name: 'value', value: 1}]);
+        this.screenSetRowHeights.addElement('hr', '', null);
+        this.screenSetRowHeights.addElement('button', 'Go back', () => { this.switchScreen(this.screenMain); });
+        this.screenSetRowHeights.addElement('button', 'Set heights', () => { /* ... this.mod.setRowHeights(...) */ });
+
+        this.guiStylesheet = document.createElement('style');
+        this.guiStylesheet.innerHTML = this.css;
+        document.head.appendChild(this.guiStylesheet);
+
+        this.guiRootElement = document.createElement('div');
+        this.guiRootElement.classList.add('kos-timetable-mod-gui');
+        document.body.append(this.guiRootElement);
+
+        this.switchScreen(this.screenMain);
+    }
+
+    switchScreen(screen)
+    {
+        for(let child of this.guiRootElement.children)
+            this.guiRootElement.removeChild(child);
+        
+        this.guiRootElement.appendChild(screen.element);
+    }
+}
+
+// initialize GUI
+const gui = new TimetableModGui();
