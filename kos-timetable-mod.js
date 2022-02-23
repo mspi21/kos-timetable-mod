@@ -20,6 +20,11 @@ class TimetableMod
         document.head.appendChild(this.customStylesheet);
     }
 
+    renameCourse(from, to)
+    {
+        document.querySelectorAll('.ticket-body > div:first-child').forEach((e) => { e.innerHTML = e.innerHTML.replace(from, to) });
+    }
+
     hyphensToNdashes()
     {
         document.querySelectorAll('.ticket-header > .overflow-hidden').forEach((e) => { e.innerHTML = e.innerHTML.replace(' - ', '&ndash;') });
