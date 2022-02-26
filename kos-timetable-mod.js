@@ -49,9 +49,9 @@ class TimetableMod
     {
         if(heights.length != 5)
             return false; 
-        for(let height of heights)
+        /*for(let height of heights)
             if(typeof(height) != typeof(1))
-                return false;
+                return false;*/
 
         // modify grid used to align the classes
         const grid = document.querySelector('.schedule-grid');
@@ -83,6 +83,34 @@ class TimetableMod
         
         return true;
     };
+
+    getRowHeights()
+    {
+        const grid = document.querySelector('.schedule-grid');
+        let gridCss = grid.style.gridTemplateRows;
+        
+        // extracts the template for the 5 rows we are interested in
+        gridCss = /var\(--low-row-height\) (.*?) var\(--low-row-height\).*/.exec(gridCss)[1];
+
+        let rowHeights = [];
+        while(gridCss)
+        {
+            console.log(gridCss);
+
+            gridCss = gridCss.trim();
+            if(gridCss.startsWith('var(--row-height)'))
+            {
+                rowHeights.push(1);
+                gridCss = gridCss.substr('var(--row-height)'.length);
+                continue;
+            }
+
+            rowHeights.push(parseInt(/^calc\(var\(--row-height\) ?\* ?([0-9]+)\)/.exec(gridCss)[1]));
+            gridCss = /^calc\(var\(--row-height\) ?\* ?[0-9]+\) ?(.*)/.exec(gridCss)[1];
+        }
+
+        return rowHeights;
+    }
     
     __addClassStyleInternal(className, borderColour, backgroundColour)
     {
@@ -118,7 +146,7 @@ class TimetableMod
     __createStyleFromTimeInternal(timeString, dayOfWeek, offsetTop)
     {
         // check string format
-        if(!/^[0-2]?[0-9]:[0-5][0-9] - [0-2]?[0-9]:[0-5][0-9]$/.test(timeString))
+        if(!/^[0-2]?[0-9]:[0-5][0-9] ?- ?[0-2]?[0-9]:[0-5][0-9]$/.test(timeString))
             return "";
 
         //rowHeights.forEach((value, index, array) => {if(index > 0) array[index] += array[index - 1];});
@@ -127,8 +155,8 @@ class TimetableMod
 
         const startingHour = Number(/^[0-2]?[0-9]/.exec(timeString));
         const startingMinute = Number(/^[0-2]?[0-9]:([0-5][0-9])/.exec(timeString)[1]);
-        const endingHour = Number(/^[0-2]?[0-9]:[0-5][0-9] - ([0-2]?[0-9])/.exec(timeString)[1]);
-        const endingMinute = Number(/^[0-2]?[0-9]:[0-5][0-9] - [0-2]?[0-9]:([0-5][0-9])/.exec(timeString)[1]);
+        const endingHour = Number(/^[0-2]?[0-9]:[0-5][0-9] ?- ?([0-2]?[0-9])/.exec(timeString)[1]);
+        const endingMinute = Number(/^[0-2]?[0-9]:[0-5][0-9] ?- ?[0-2]?[0-9]:([0-5][0-9])/.exec(timeString)[1]);
 
         let startingColumn = 2 + (startingHour - 7);
         let endingColumn = 2 + (endingHour - 7);
@@ -166,11 +194,11 @@ class TimetableMod
         const eventBaseWrapperStyle = this.__createStyleFromTimeInternal(ticketTime, ticketDayOfWeek, offsetTop);
         if(!eventBaseWrapperStyle)
             return null;
-        if(typeof(ticketDayOfWeek) != typeof(1) || ticketDayOfWeek < 0 || ticketDayOfWeek > 4)
+        if(ticketDayOfWeek < 0 || ticketDayOfWeek > 4)
             return null;
-        if(typeof(evenOrOddWeeksOnly) != typeof(1) || evenOrOddWeeksOnly < 0 || evenOrOddWeeksOnly > 2)
+        if(evenOrOddWeeksOnly < 0 || evenOrOddWeeksOnly > 2)
             return null;
-        if(typeof(offsetTop) != typeof(1))
+        if(offsetTop < 0)
             return null;
 
         // create the new ticket
@@ -342,7 +370,26 @@ class TimetableModGuiScreen
 
         this.element.appendChild(element);
     }
+
+    addSelect(id, options)
+    {
+        const selectElement = document.createElement('select');
+        selectElement.setAttribute('id', id);
+
+        for(let option of options)
+        {
+            const optionElement = document.createElement('option');
+            optionElement.setAttribute('value', option);
+            optionElement.innerText = option;
+            selectElement.appendChild(optionElement);
+        }
+
+        this.element.appendChild(selectElement);
+    }
 }
+
+const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+const weekParities = ['Every week', 'Odd weeks only', 'Even weeks only'];
 
 class TimetableModGui
 {
@@ -353,26 +400,69 @@ class TimetableModGui
             .kos-timetable-mod-gui { width: 400px; position: fixed; bottom: 25px; right: 25px; background-color: white; border: 2px solid #0065bd; }
             .kos-timetable-mod-gui > div > * { margin-bottom: 0.25em; }
         `;
+        this.courseTypes = ['lecture', 'seminar', 'laboratory'];
+        this.rowHeights = this.mod.getRowHeights();
 
         this.screenMain = new TimetableModGuiScreen(this);
         this.screenMain.addElement('button', 'Add ticket', () => { this.switchScreen(this.screenAddTicket); });
-        this.screenMain.addElement('button', 'Add course type', () => { this.switchScreen(this.screenAddCourseType); });
+        this.screenMain.addElement('button', 'Add course type', () => { this.switchScreen(this.screenAddCourseType); }, [{name: 'disabled', value: ''}]);
         this.screenMain.addElement('button', 'Rename course', () => { this.switchScreen(this.screenRenameCourse); });
-        this.screenMain.addElement('button', 'Edit tickets', () => { this.switchScreen(this.screenEditTickets); });
+        this.screenMain.addElement('button', 'Edit tickets', () => { this.switchScreen(this.screenEditTickets); }, [{name: 'disabled', value: ''}]);
         this.screenMain.addElement('button', 'Set row heights', () => { this.switchScreen(this.screenSetRowHeights); });
-        this.screenMain.addElement('button', 'Save layout as javascript', () => {  });
-        this.screenMain.addElement('button', 'Load saved javascript', () => {  });
+        this.screenMain.addElement('button', 'Save layout as javascript', () => {  }, [{name: 'disabled', value: ''}]);
+        this.screenMain.addElement('button', 'Load saved javascript', () => {  }, [{name: 'disabled', value: ''}]);
 
         this.screenAddTicket = new TimetableModGuiScreen(this);
         this.screenAddTicket.addElement('label', 'Name:', null);
         this.screenAddTicket.addElement('input', '', null, [{name: 'id', value: 'screenAddTicket_Name'}]);
+        this.screenAddTicket.addElement('label', 'Type:', null);
+        this.screenAddTicket.addSelect ('screenAddTicket_Type', this.courseTypes);
         this.screenAddTicket.addElement('label', 'Teacher:', null);
-        this.screenAddTicket.addElement('input', '', null);
+        this.screenAddTicket.addElement('input', '', null, [{name: 'id', value: 'screenAddTicket_Teacher'}]);
+        this.screenAddTicket.addElement('label', 'Day of week:', null);
+        this.screenAddTicket.addSelect ('screenAddTicket_DayOfWeek', daysOfWeek);
+        this.screenAddTicket.addElement('label', 'Week parity:', null);
+        this.screenAddTicket.addSelect ('screenAddTicket_WeekParity', weekParities);
         this.screenAddTicket.addElement('label', 'Time:', null);
-        this.screenAddTicket.addElement('input', '', null, [{name: 'placeholder', value: '(H)H:MM-(H)H:MM'}]);
+        this.screenAddTicket.addElement('input', '', null, [{name: 'placeholder', value: '(H)H:MM-(H)H:MM (24H format)'}, {name: 'id', value: 'screenAddTicket_Time'}]);
+        this.screenAddTicket.addElement('label', 'Parallel code:', null);
+        this.screenAddTicket.addElement('input', '', null, [{name: 'placeholder', value: 'e.g. 118C, 2P, ...'}, {name: 'id', value: 'screenAddTicket_Parallel'}]);
+        this.screenAddTicket.addElement('label', 'Location (general):', null);
+        this.screenAddTicket.addElement('input', '', null, [{name: 'placeholder', value: 'e.g. T9'}, {name: 'id', value: 'screenAddTicket_LocationGeneral'}]);
+        this.screenAddTicket.addElement('label', 'Location (specific):', null);
+        this.screenAddTicket.addElement('input', '', null, [{name: 'placeholder', value: 'e.g. :105'}, {name: 'id', value: 'screenAddTicket_LocationSpecific'}]);
+        this.screenAddTicket.addElement('label', 'Offset from top:', null);
+        this.screenAddTicket.addElement('input', '', null, [{name: 'type', value: 'number'}, {name: 'min', value: 0}, {name: 'max', value: 4}, {name: 'value', value: 0}, {name: 'id', value: 'screenAddTicket_Offset'}]);
         this.screenAddTicket.addElement('hr', '', null);
         this.screenAddTicket.addElement('button', 'Go back', () => { this.switchScreen(this.screenMain); });
-        this.screenAddTicket.addElement('button', 'Add ticket', () => { /* this.mod.addTicket() ...*/ });
+        this.screenAddTicket.addElement('button', 'Add ticket', () => {
+            /* this.mod.addTicket() ...*/
+            const ticketName = document.querySelector('#screenAddTicket_Name').value;
+            const ticketType = document.querySelector('#screenAddTicket_Type').value;
+            const ticketTeacher = document.querySelector('#screenAddTicket_Teacher').value;
+            const ticketDayOfWeek = daysOfWeek.indexOf(document.querySelector('#screenAddTicket_DayOfWeek').value);
+            const ticketWeekParity = weekParities.indexOf(document.querySelector('#screenAddTicket_WeekParity').value);
+            const ticketTimeString = document.querySelector('#screenAddTicket_Time').value;
+            const ticketParallel = document.querySelector('#screenAddTicket_Parallel').value;
+            const ticketLocationGeneral = document.querySelector('#screenAddTicket_LocationGeneral').value;
+            const ticketLocationSpecific = document.querySelector('#screenAddTicket_LocationSpecific').value;
+            const ticketOffset = document.querySelector('#screenAddTicket_Offset').value;
+
+            // input check
+            if(!ticketName || this.courseTypes.indexOf(ticketType) == -1 || ticketDayOfWeek == -1 || ticketWeekParity == -1 || ticketOffset < 0)
+            {
+                alert("Please fill out all required fields.");
+                return;
+            }
+
+            if(!this.mod.__createStyleFromTimeInternal(ticketTimeString, 0, 0))
+            {
+                alert("Please correct the time format. Must match (H)H:MM-(H)H:MM (24H format)");
+                return;
+            }
+
+            this.mod.addTicket(ticketType, ticketDayOfWeek, ticketWeekParity, ticketTimeString, ticketParallel, ticketName, ticketTeacher, ticketLocationGeneral, ticketLocationSpecific, ticketOffset);
+        });
 
         this.screenAddCourseType = new TimetableModGuiScreen(this);
         this.screenAddCourseType.addElement('label', 'CSS compliant class name:', null);
@@ -387,12 +477,20 @@ class TimetableModGui
 
         this.screenRenameCourse = new TimetableModGuiScreen(this);
         this.screenRenameCourse.addElement('label', 'Rename from:', null);
-        this.screenRenameCourse.addElement('input', '', null);
+        this.screenRenameCourse.addElement('input', '', null, [{name: 'id', value: 'screenRenameCourse_RenameFrom'}]);
         this.screenRenameCourse.addElement('label', 'Rename to:', null);
-        this.screenRenameCourse.addElement('input', '', null);
+        this.screenRenameCourse.addElement('input', '', null, [{name: 'id', value: 'screenRenameCourse_RenameTo'}]);
         this.screenRenameCourse.addElement('hr', '', null);
         this.screenRenameCourse.addElement('button', 'Go back', () => { this.switchScreen(this.screenMain); });
-        this.screenRenameCourse.addElement('button', 'Rename course', () => { /* this.mod.renameCourse() ...*/ });
+        this.screenRenameCourse.addElement('button', 'Rename course', () => {
+            /* this.mod.renameCourse() ...*/
+            const renameFrom = document.querySelector('#screenRenameCourse_RenameFrom');
+            const renameTo = document.querySelector('#screenRenameCourse_RenameTo');
+
+            this.mod.renameCourse(renameFrom.value, renameTo.value);
+            renameFrom.value = "";
+            renameTo.value = "";
+        });
         
         this.screenEditTickets = new TimetableModGuiScreen(this);
         this.screenEditTickets.addElement('span', '[ TODO ]', null);
@@ -401,18 +499,25 @@ class TimetableModGui
 
         this.screenSetRowHeights = new TimetableModGuiScreen(this);
         this.screenSetRowHeights.addElement('label', 'Monday:', null);
-        this.screenSetRowHeights.addElement('input', '', null, [{name: 'type', value: 'number'}, {name: 'min', value: 1}, {name: 'max', value: 4}, {name: 'value', value: 1}]);
+        this.screenSetRowHeights.addElement('input', '', null, [{name: 'id', value: 'screenSetRowHeights_0'}, {name: 'type', value: 'number'}, {name: 'min', value: 1}, {name: 'max', value: 4}, {name: 'value', value: this.rowHeights[0]}]);
         this.screenSetRowHeights.addElement('label', 'Tuesday:', null);
-        this.screenSetRowHeights.addElement('input', '', null, [{name: 'type', value: 'number'}, {name: 'min', value: 1}, {name: 'max', value: 4}, {name: 'value', value: 1}]);
+        this.screenSetRowHeights.addElement('input', '', null, [{name: 'id', value: 'screenSetRowHeights_1'}, {name: 'type', value: 'number'}, {name: 'min', value: 1}, {name: 'max', value: 4}, {name: 'value', value: this.rowHeights[1]}]);
         this.screenSetRowHeights.addElement('label', 'Wednesday:', null);
-        this.screenSetRowHeights.addElement('input', '', null, [{name: 'type', value: 'number'}, {name: 'min', value: 1}, {name: 'max', value: 4}, {name: 'value', value: 1}]);
+        this.screenSetRowHeights.addElement('input', '', null, [{name: 'id', value: 'screenSetRowHeights_2'}, {name: 'type', value: 'number'}, {name: 'min', value: 1}, {name: 'max', value: 4}, {name: 'value', value: this.rowHeights[2]}]);
         this.screenSetRowHeights.addElement('label', 'Thursday:', null);
-        this.screenSetRowHeights.addElement('input', '', null, [{name: 'type', value: 'number'}, {name: 'min', value: 1}, {name: 'max', value: 4}, {name: 'value', value: 1}]);
+        this.screenSetRowHeights.addElement('input', '', null, [{name: 'id', value: 'screenSetRowHeights_3'}, {name: 'type', value: 'number'}, {name: 'min', value: 1}, {name: 'max', value: 4}, {name: 'value', value: this.rowHeights[3]}]);
         this.screenSetRowHeights.addElement('label', 'Friday:', null);
-        this.screenSetRowHeights.addElement('input', '', null, [{name: 'type', value: 'number'}, {name: 'min', value: 1}, {name: 'max', value: 4}, {name: 'value', value: 1}]);
+        this.screenSetRowHeights.addElement('input', '', null, [{name: 'id', value: 'screenSetRowHeights_4'}, {name: 'type', value: 'number'}, {name: 'min', value: 1}, {name: 'max', value: 4}, {name: 'value', value: this.rowHeights[4]}]);
         this.screenSetRowHeights.addElement('hr', '', null);
         this.screenSetRowHeights.addElement('button', 'Go back', () => { this.switchScreen(this.screenMain); });
-        this.screenSetRowHeights.addElement('button', 'Set heights', () => { /* ... this.mod.setRowHeights(...) */ });
+        this.screenSetRowHeights.addElement('button', 'Set heights', () => {
+            /* ... this.mod.setRowHeights(...) */
+            const rowHeights = [];
+            for(let i = 0; i < 5; i++)
+                rowHeights.push(0 + document.querySelector(`#screenSetRowHeights_${i}`).value);
+            
+            this.mod.setRowHeights(rowHeights);
+        });
 
         this.guiStylesheet = document.createElement('style');
         this.guiStylesheet.innerHTML = this.css;
@@ -431,6 +536,11 @@ class TimetableModGui
             this.guiRootElement.removeChild(child);
         
         this.guiRootElement.appendChild(screen.element);
+    }
+
+    setVisible(visible)
+    {
+        this.guiRootElement.style.display = visible ? '' : 'none';
     }
 }
 
