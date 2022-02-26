@@ -411,6 +411,8 @@ class TimetableModGui
         this.screenMain.addElement('button', 'Set row heights', () => { this.switchScreen(this.screenSetRowHeights); });
         this.screenMain.addElement('button', 'Save layout as javascript', () => {  }, [{name: 'disabled', value: ''}]);
         this.screenMain.addElement('button', 'Load saved javascript', () => {  }, [{name: 'disabled', value: ''}]);
+        this.screenMain.addElement('hr', '', null);
+        this.screenMain.addElement('button', 'Close GUI', () => { this.setVisible(false); console.log("Reopen GUI by typing: gui.setVisible(true)"); });
 
         this.screenAddTicket = new TimetableModGuiScreen(this);
         this.screenAddTicket.addElement('label', 'Name:', null);
@@ -428,9 +430,9 @@ class TimetableModGui
         this.screenAddTicket.addElement('label', 'Parallel code:', null);
         this.screenAddTicket.addElement('input', '', null, [{name: 'placeholder', value: 'e.g. 118C, 2P, ...'}, {name: 'id', value: 'screenAddTicket_Parallel'}]);
         this.screenAddTicket.addElement('label', 'Location (general):', null);
-        this.screenAddTicket.addElement('input', '', null, [{name: 'placeholder', value: 'e.g. T9'}, {name: 'id', value: 'screenAddTicket_LocationGeneral'}]);
+        this.screenAddTicket.addElement('input', '', null, [{name: 'placeholder', value: 'e.g. T9:'}, {name: 'id', value: 'screenAddTicket_LocationGeneral'}]);
         this.screenAddTicket.addElement('label', 'Location (specific):', null);
-        this.screenAddTicket.addElement('input', '', null, [{name: 'placeholder', value: 'e.g. :105'}, {name: 'id', value: 'screenAddTicket_LocationSpecific'}]);
+        this.screenAddTicket.addElement('input', '', null, [{name: 'placeholder', value: 'e.g. 105'}, {name: 'id', value: 'screenAddTicket_LocationSpecific'}]);
         this.screenAddTicket.addElement('label', 'Offset from top:', null);
         this.screenAddTicket.addElement('input', '', null, [{name: 'type', value: 'number'}, {name: 'min', value: 0}, {name: 'max', value: 4}, {name: 'value', value: 0}, {name: 'id', value: 'screenAddTicket_Offset'}]);
         this.screenAddTicket.addElement('hr', '', null);
