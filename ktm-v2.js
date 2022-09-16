@@ -525,8 +525,58 @@ class TicketBuilder {
     }
 }
 
+class GuiScreenBuilder {
+    constructor() {
+        this.element = document.createElement('div');
+        this.element.classList.add('mod-gui-screen');
+        return this;
+    }
+
+    text(text, classes = null) {
+        const el = document.createElement('div');
+        el.innerText = text;
+        if(classes)
+            el.classList.add(...classes.split(' '));
+        this.element.appendChild(el);
+        return this;
+    }
+
+    button(text, action) {
+        const el = document.createElement('div');
+        const button = document.createElement('button');
+        button.innerText = text;
+        button.classList.add(
+            ...'btn button-container btn-primary btn-md button-component w100'.split(' ')
+        );
+        button.onclick = action;
+        el.appendChild(button);
+        this.element.appendChild(el);
+        return this;
+    }
+
+    done() {
+        return new GuiScreen(this.element);
+    }
+}
+
+class GuiScreen {
+    static get createScreenWith() {
+        return new GuiScreenBuilder();
+    }
+
+    constructor(element) {
+        this.element = element;
+    }
+
+    update() {
+        
+    }
+}
+
 class ModGui {
     constructor() {
+        this.api = new ModApi();
+
         this.guiStylesheet = document.createElement('style');
         this.guiStylesheet.innerHTML = `
             .kos-timetable-mod-gui {
@@ -537,8 +587,24 @@ class ModGui {
                 background-color: white;
                 border: 2px solid #0065bd;
             }
-            .kos-timetable-mod-gui > div > * {
-                margin-bottom: 0.25em;
+            .mod-gui-screen {
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                padding: 12px;
+            }
+            .mod-gui-screen > div {
+                width: 100%;
+            }
+            .w100 {
+                width: 100%;
+            }
+            .fs18 {
+                font-size: 18px;
+            }
+            .bld {
+                font-weight: bold;
             }
         `;
         document.head.appendChild(this.guiStylesheet);
@@ -546,8 +612,56 @@ class ModGui {
         this._guiRootElement = document.createElement('div');
         this._guiRootElement.classList.add('kos-timetable-mod-gui');
         document.body.append(this._guiRootElement);
+
+        this.screens = {
+            main: GuiScreen
+                .createScreenWith
+                .text('Kos Schedule Mod v2', 'bld fs18')
+                .button('Courses', () => this.setNewScreen('courses'))
+                .button('Styles', () => this.setNewScreen('styles'))
+                .button('Tickets', () => this.setNewScreen('tickets'))
+                .done(),
+            courses: GuiScreen
+                .createScreenWith
+                .text('Courses', 'bld fs18')
+                .button('Back', () => this.setPreviousScreen())
+                .done(),
+            styles: GuiScreen
+                .createScreenWith
+                .text('Styles', 'bld fs18')
+                .button('Back', () => this.setPreviousScreen())
+                .done(),
+            tickets: GuiScreen
+                .createScreenWith
+                .text('Tickets', 'bld fs18')
+                .button('Back', () => this.setPreviousScreen())
+                .done(),
+        };
+        this.screenHistory = [];
+        this.setNewScreen('main');
+    }
+
+    setScreen(id) {
+        for(let i = 0; i < this._guiRootElement.children.length; i++)
+        this._guiRootElement.children[i].parentElement.removeChild(
+            this._guiRootElement.children[i]
+        );
+        this._guiRootElement.appendChild(this.screens[id].element);
+        this.screens[id].update();
+    }
+
+    setNewScreen(id) {
+        this.setScreen(id);
+        this.screenHistory.push(id);
+    }
+
+    setPreviousScreen() {
+        if(this.screenHistory.length > 1)
+            this.screenHistory.splice(-1);
+        this.setScreen(this.screenHistory.at(-1));
     }
 }
+let gui = new ModGui();
 
 
 
