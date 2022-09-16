@@ -1,3 +1,12 @@
+const generateUUID = () => {
+    //#Source: https://bit.ly/2neWfJ2 
+    return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(
+        /[018]/g, c => (
+            c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))
+        ).toString(16)
+    )
+}
+
 const KosWeekParity = Object.freeze({
     all_weeks: '',
     odd_weeks: 'Lichý',
@@ -13,6 +22,7 @@ const KosDayOfWeek = Object.freeze({
 })
 
 class Ticket {
+
     constructor(id, course_event, html_element = undefined) {
         this.id = id
         this.course_event = course_event
@@ -285,6 +295,10 @@ class ModApi {
         console.log(`Successfully parsed ${this._tickets.length} tickets.`)
     }
 
+    get createTicketWhich() {
+        return new TicketBuilder(this._courses, this._styles);
+    }
+
     _parseExistingElements() {
         const elements = document.querySelectorAll('.schedule-grid > .event-base-wrapper')
         elements.forEach(element => {
@@ -305,7 +319,7 @@ class ModApi {
             }
 
             // add Ticket to tickets
-            this._tickets.push(new Ticket(this._generateUUID(), course_event, element))
+            this._tickets.push(new Ticket(generateUUID(), course_event, element))
         });
     }
 
@@ -345,15 +359,6 @@ class ModApi {
 
         const not = (predicate) => ((thing) => !predicate(thing))
         this._tickets = this._tickets.filter(not(predicate))
-    }
-
-    _generateUUID() {
-        //#Source: https://bit.ly/2neWfJ2 
-        return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(
-            /[018]/g, c => (
-                c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))
-            ).toString(16)
-        )
     }
 
     getStyles() {
@@ -418,41 +423,21 @@ class ModApi {
         return this._tickets
     }
 
-    // TODO use a fucking builder for this shit
     // course argument refers to official_name (id) of course
-    addTicket(course, style, time_of_week, place, week_parity = KosWeekParity.all_weeks,
-        parallel = undefined, teacher = undefined) {
-    
-        // type checking... :'(
-        if(typeof(time_of_week) !== 'object'
-        || time_of_week.day === undefined
-        || time_of_week.begin_hour === undefined
-        || time_of_week.end_hour === undefined
-        || time_of_week.end_minute === undefined)
-            throw new Error(`Incorrect type for argument 'time_of_week'.`)
-        if(typeof(place) !== 'object'
-        || place.general === undefined
-        || place.specific === undefined)
-            throw new Error(`Incorrect type for argument 'place': isobject ${typeof(place) === 'object'}, generalundefined ${place.general === undefined}, specificundefined ${place.specific === undefined}`)
+    addTicket(ticket_builder) {
+        if(!(ticket_builder instanceof TicketBuilder))
+            throw new Error(`Wrong type for argument 'ticket_builder: must be an instance of TicketBuilder.'`)
         
-        const course_ref = this._courses.find(c => c.official_name === course)
-        if(!course_ref)
-            throw new Error(`Could not find a course with official name '${course}.'`)
+        const uuid = ticket_builder.uuid
+        const event = ticket_builder.course_event
 
-        const style_ref = this._styles[style]
-        if(!style_ref)
-            throw new Error(`Could not find a style with classname '${style}.'`)
+        if(event.course === undefined ||
+            event.style === undefined ||
+            event.time_of_week === undefined ||
+            event.week_parity === undefined)
+            throw new Error(`Added ticket must have at least these fields: 'course', 'style', 'time_of_week', 'week_parity'.`)
 
-        const uuid = this._generateUUID()
-        this._tickets.push(new Ticket(uuid, {
-            course: course_ref,
-            style: style_ref,
-            time_of_week,
-            week_parity,
-            parallel,
-            teacher,
-            location: place
-        }))
+        this._tickets.push(new Ticket(uuid, event))
         this._refreshTickets(ticket => ticket.id === uuid)
         return uuid
     }
@@ -471,8 +456,120 @@ class ModApi {
 }
 
 class TicketBuilder {
-    // TODO
+    constructor(courses, styles) {
+        this._courses = courses
+        this._styles = styles
+        this._course_event = {}
+        this._uuid = generateUUID()
+    }
+
+    get uuid() {
+        return this._uuid
+    }
+
+    get course_event() {
+        return this._course_event
+    }
+
+    belongsToCourse(course_name) {
+        const course_ref = this._courses.find(c => c.official_name === course_name)
+        if(!course_ref)
+            throw new Error(`Could not find a course with official name '${course}.'`)
+        this._course_event.course = course_ref
+        return this
+    }
+
+    hasStyle(style) {
+        const style_ref = this._styles[style]
+        if(!style_ref)
+            throw new Error(`Could not find a style with classname '${style}.'`)
+        this._course_event.style = style_ref
+        return this
+    }
+
+    takesPlaceAtTime(time_of_week, week_parity = KosWeekParity.all_weeks) {
+        if(typeof(time_of_week) !== 'object'
+        || time_of_week.day === undefined
+        || time_of_week.begin_hour === undefined
+        || time_of_week.begin_minute === undefined
+        || time_of_week.end_hour === undefined
+        || time_of_week.end_minute === undefined)
+            throw new Error(`Incorrect type for argument 'time_of_week'.`)
+        
+        if(!Object.values(KosWeekParity).includes(week_parity))
+            throw new Error(`Argument 'week_parity' must be member of KosWeekParity.`)
+        
+        this._course_event.time_of_week = time_of_week
+        this._course_event.week_parity = week_parity
+        return this
+    }
+
+    takesPlaceAtLocation(place) {
+        if(typeof(place) !== 'object'
+        || place.general === undefined
+        || place.specific === undefined)
+            throw new Error(`Incorrect type for argument 'place'.`)
+        
+        this._course_event.location = place
+        return this
+    }
+
+    hasParallelCode(code) {
+        this._course_event.parallel = code
+        return this
+    }
+
+    isTaughtBy(teacher) {
+        this._course_event.teacher = teacher
+        return this
+    }
 }
+
+class ModGui {
+    constructor() {
+        this.guiStylesheet = document.createElement('style');
+        this.guiStylesheet.innerHTML = `
+            .kos-timetable-mod-gui {
+                width: 400px;
+                position: fixed;
+                bottom: 25px;
+                right: 25px;
+                background-color: white;
+                border: 2px solid #0065bd;
+            }
+            .kos-timetable-mod-gui > div > * {
+                margin-bottom: 0.25em;
+            }
+        `;
+        document.head.appendChild(this.guiStylesheet);
+
+        this._guiRootElement = document.createElement('div');
+        this._guiRootElement.classList.add('kos-timetable-mod-gui');
+        document.body.append(this._guiRootElement);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/************** DOCS/TESTS **************/
 
 /* INITIAL SETUP */
 
@@ -522,24 +619,25 @@ api.getTickets()
 
 // adds a ticket for a course
 
-let id = api.addTicket(
-    course = 'BI-TV1',
-    style = 'sport',
-    time_of_week = {
+let newTicket = api
+    .createTicketWhich
+    .belongsToCourse('BI-TV1')
+    .hasStyle('sport')
+    .takesPlaceAtTime({
         day: 0,
         begin_hour: 20,
         begin_minute: 30,
         end_hour: 22,
         end_minute: 00
-    },
-    place = {
+    }, KosWeekParity.all_weeks)
+    .takesPlaceAtLocation({
         general: 'Juliska &mdash; ',
         specific: 'Modrá těl.'
-    },
-    week_parity = KosWeekParity.all_weeks,
-    parallel = 'VOL07',
-    teacher = 'Markéta Kašparová'
-)
+    })
+    .hasParallelCode('VOL07')
+    .isTaughtBy('Markéta Kašparová')
+
+let id = api.addTicket(newTicket)
 
 // updates a ticket based on id
 api.updateTicket(id, event => event.location.specific = 'Hala')
