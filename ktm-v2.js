@@ -525,11 +525,113 @@ class TicketBuilder {
     }
 }
 
-class GuiScreenBuilder {
+class Button {
+    constructor(screen, text, action) {
+        this.screen = screen;
+        this.text = text;
+        this.action = action;
+        this.createElement();
+    }
+
+    createElement() {
+        const button = document.createElement('button');
+        button.innerText = this.text;
+        button.classList.add(
+            ...'btn button-container btn-primary btn-md button-component w100'.split(' ')
+        );
+        button.addEventListener('click', () => this.action(this.screen));
+        this.element = button;
+    }
+}
+
+class SelectableList {
+    constructor(header, dataSource) {
+        this.id = generateUUID();
+        this.header = header;
+        this.header.push('Selected');
+        this.dataSource = dataSource;
+        this.createElement();
+    }
+
+    createElement() {
+        this.element = document.createElement('div');
+
+        const tableEl = document.createElement('div');
+        tableEl.classList.add(...'table table-hover mod-selectable-list'.split(' '));
+        this.element.appendChild(tableEl);
+        
+        /* Add header */
+        const thead = document.createElement('thead');
+        tableEl.appendChild(thead);
+
+        const thead_tr = document.createElement('tr');
+        thead.appendChild(thead_tr);
+
+        for(const col of this.header) {
+            const colEl = document.createElement('th');
+            const colElDiv = document.createElement('div');
+            colElDiv.innerText = col;
+            colEl.appendChild(colElDiv);
+            thead_tr.appendChild(colEl);
+        }
+
+        const tbody = document.createElement('tbody');
+        tableEl.appendChild(tbody);
+
+        // also keep a reference to the tbody
+        this.tbody = tbody;
+    }
+
+    update() {
+        /* Remove previous data */
+        for(let i = 0; i < this.tbody.children.length; i++) {
+            this.tbody.children[i].parentElement.removeChild(
+                this.tbody.children[i]
+            );
+        }
+
+        /* Add rows */
+        for(const row of this.dataSource()) {
+            const tr = document.createElement('tr');
+            this.tbody.appendChild(tr);
+
+            for(const col of row.columns) {
+                const colEl = document.createElement('td');
+                tr.appendChild(colEl);
+
+                const colElDiv = document.createElement('div');
+                colEl.appendChild(colElDiv);
+
+                colElDiv.innerText = col === null ? '-' : col;
+            }
+            /* Add radio button */
+            const colEl = document.createElement('td');
+            tr.appendChild(colEl);
+
+            const colElRadio = document.createElement('input');
+            colEl.appendChild(colElRadio);
+
+            colElRadio.setAttribute('type', 'radio');
+            colElRadio.setAttribute('id', `selectable_id_${row.id}`);
+            colElRadio.setAttribute('name', `selectable_name_${this.id}`);
+            colElRadio.setAttribute('value', row.id);
+        }
+    }
+
+    getValue() {
+        const radios = document.getElementsByName(`selectable_name_${this.id}`);
+        for(let i = 0; i < radios.length; i++)
+            if(radios[i].checked)
+                return radios[i].value;
+        return null;
+    }
+}
+
+class GuiScreen {
     constructor() {
         this.element = document.createElement('div');
         this.element.classList.add('mod-gui-screen');
-        return this;
+        this.reactiveComponents = {};
     }
 
     text(text, classes = null) {
@@ -542,34 +644,33 @@ class GuiScreenBuilder {
     }
 
     button(text, action) {
+        const button = new Button(this, text, action);
         const el = document.createElement('div');
-        const button = document.createElement('button');
-        button.innerText = text;
-        button.classList.add(
-            ...'btn button-container btn-primary btn-md button-component w100'.split(' ')
-        );
-        button.onclick = action;
-        el.appendChild(button);
+        el.appendChild(button.element);
         this.element.appendChild(el);
         return this;
     }
 
-    done() {
-        return new GuiScreen(this.element);
+    buttonGroup(buttons) {
+        const el = document.createElement('div');
+        el.classList.add('mod-button-group');
+        for(const button of buttons)
+            el.appendChild(new Button(this, button.text, button.action).element);
+        this.element.appendChild(el);
+        return this;
     }
-}
 
-class GuiScreen {
-    static get createScreenWith() {
-        return new GuiScreenBuilder();
-    }
-
-    constructor(element) {
-        this.element = element;
+    selectableList(id, sList) {
+        if(Object.keys(this.reactiveComponents).includes(id))
+            throw new Error(`There is already a reactive component with id ${id}`);
+        this.reactiveComponents[id] = sList;
+        this.element.appendChild(sList.element);
+        return this;
     }
 
     update() {
-        
+        for(let componentId in this.reactiveComponents)
+            this.reactiveComponents[componentId].update();
     }
 }
 
@@ -597,6 +698,17 @@ class ModGui {
             .mod-gui-screen > div {
                 width: 100%;
             }
+            .mod-selectable-list {
+                height: 200px;
+                overflow: auto;
+            }
+            .mod-button-group {
+                display: flex;
+                flex-direction: row;
+            }
+            .mod-button-group > * {
+                flex: 1;
+            }
             .w100 {
                 width: 100%;
             }
@@ -614,28 +726,51 @@ class ModGui {
         document.body.append(this._guiRootElement);
 
         this.screens = {
-            main: GuiScreen
-                .createScreenWith
+            main: new GuiScreen()
                 .text('Kos Schedule Mod v2', 'bld fs18')
                 .button('Courses', () => this.setNewScreen('courses'))
                 .button('Styles', () => this.setNewScreen('styles'))
-                .button('Tickets', () => this.setNewScreen('tickets'))
-                .done(),
-            courses: GuiScreen
-                .createScreenWith
+                .button('Tickets', () => this.setNewScreen('tickets')),
+            courses: new GuiScreen()
                 .text('Courses', 'bld fs18')
-                .button('Back', () => this.setPreviousScreen())
-                .done(),
-            styles: GuiScreen
-                .createScreenWith
+                .selectableList('courses', new SelectableList(
+                    ['Code', 'Custom Name'],
+                    () => this.api.getCourses().map(course => ({
+                        id: course.official_name,
+                        columns: [
+                            course.official_name,
+                            course.display_name || null
+                        ]
+                    }))
+                ))
+                .buttonGroup([
+                    {
+                        text: 'Add Course',
+                        action: () => { console.log("add course"); }
+                    },
+                    {
+                        text: 'Edit Course',
+                        action: (screen) => {
+                            console.log("edit course: " + screen.reactiveComponents['courses'].getValue());
+                        }
+                    },
+                    {
+                        text: 'Remove Course',
+                        action: (screen) => {
+                            console.log("remove course: " + screen.reactiveComponents['courses'].getValue());
+                        }
+                    },
+                ])
+                .button('Back', () => this.setPreviousScreen()),
+            editCourseScreen: new GuiScreen()
+                .text('Edit Course Display Name', 'bld fs18')
+                .button('Back', () => this.setPreviousScreen()),
+            styles: new GuiScreen()
                 .text('Styles', 'bld fs18')
-                .button('Back', () => this.setPreviousScreen())
-                .done(),
-            tickets: GuiScreen
-                .createScreenWith
+                .button('Back', () => this.setPreviousScreen()),
+            tickets: new GuiScreen()
                 .text('Tickets', 'bld fs18')
-                .button('Back', () => this.setPreviousScreen())
-                .done(),
+                .button('Back', () => this.setPreviousScreen()),
         };
         this.screenHistory = [];
         this.setNewScreen('main');
