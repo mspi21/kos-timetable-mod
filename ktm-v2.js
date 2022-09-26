@@ -285,6 +285,16 @@ class ModApi {
                 id: 'seminar',
                 color_dark: '#A2AD00',
                 color_light: '#f6f7e6'
+            },
+            {
+                id: 'laboratory',
+                color_dark: '#6AADE4',
+                color_light: '#e6f4ff'
+            },
+            {
+                id: 'conflict',
+                color_dark: '#C60C30',
+                color_light: '#f9e7ea'
             }
         ]
         this._courses = []
@@ -867,6 +877,10 @@ const AddStyleScreenComponent = {
     }
 };
 
+const EditStyleScreenComponent = {
+
+};
+
 const TicketsScreenComponent = {
     inject: ['api'],
     data() {
@@ -1178,6 +1192,10 @@ const ModAppStyles = `
     max-height: 240px;
     overflow: auto;
 }
+.mod-error > div {
+    background-color: #f9dccd;
+    padding: 1em;
+}
 `;
 
 class ModGui {
@@ -1207,6 +1225,7 @@ class ModGui {
         return vue.createApp(config);
     }
 }
+
 let gui = await ModGui.create();
 
 
