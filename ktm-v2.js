@@ -5,13 +5,13 @@ const generateUUID = () => {
             c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))
         ).toString(16)
     )
-}
+};
 
 const KosWeekParity = Object.freeze({
     all_weeks: '',
     odd_weeks: 'Lichý',
     even_weeks: 'Sudý'
-})
+});
 
 const KosDayOfWeek = Object.freeze({
     monday: 0,
@@ -19,7 +19,24 @@ const KosDayOfWeek = Object.freeze({
     wednesday: 2,
     thursday: 3,
     friday: 4
-})
+});
+
+const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+const kosTimeToString = ({ begin_hour, begin_minute, end_hour, end_minute}) => {
+    const format_minutes = (minutes) => {
+        if(!minutes) return '00'
+        return (minutes < 10) ? ('0' + minutes) : ('' + minutes);
+    }
+    
+    let res = ''
+    res += begin_hour + ':'
+    res += format_minutes(begin_minute)
+    res += '\u2013' // en dash
+    res += end_hour + ':'
+    res += format_minutes(end_minute)
+    return res
+};
 
 class Ticket {
 
@@ -78,7 +95,7 @@ class Ticket {
             white-space: nowrap;
             font-size: .8rem;
         `
-        th_overflow_hidden.innerText = Ticket._kosTimeToString(course_event.time_of_week);
+        th_overflow_hidden.innerText = kosTimeToString(course_event.time_of_week);
         ticket_header.appendChild(th_overflow_hidden)
 
         if(course_event.parallel)
@@ -207,21 +224,6 @@ class Ticket {
         tf_overflow_hidden.appendChild(tf_span)
 
         return ticket_footer
-    }
-
-    static _kosTimeToString({ begin_hour, begin_minute, end_hour, end_minute}) {
-        const format_minutes = (minutes) => {
-            if(!minutes) return '00'
-            return (minutes < 10) ? ('0' + minutes) : ('' + minutes);
-        }
-        
-        let res = ''
-        res += begin_hour + ':'
-        res += format_minutes(begin_minute)
-        res += '\u2013' // en dash
-        res += end_hour + ':'
-        res += format_minutes(end_minute)
-        return res
     }
 
     static _createPositionCss(time_of_week, offset_top) {
@@ -415,7 +417,8 @@ class ModApi {
         const course = this._courses.find(c => c.official_name === official_name)
         if(!course)
             throw new Error(`Could not find a course with official name '${official_name}.'`)
-        
+        this._courses = this._courses.filter(c => c.official_name !== official_name);
+
         // maybetodo check if any tickets exist (make ux more friendly)?
         // for now, just delete all tickets associated with course
         this._removeTickets(ticket => ticket.course_event.course.official_name === official_name)
@@ -476,7 +479,7 @@ class TicketBuilder {
     belongsToCourse(course_name) {
         const course_ref = this._courses.find(c => c.official_name === course_name)
         if(!course_ref)
-            throw new Error(`Could not find a course with official name '${course}.'`)
+            throw new Error(`Could not find a course with official name '${course_name}.'`)
         this._course_event.course = course_ref
         return this
     }
@@ -627,10 +630,110 @@ const MainScreenComponent = {
 };
 
 const CoursesScreenComponent = {
+    inject: ['api'],
+    data() {
+        return {
+            AddCourseScreenComponent,
+            courses: [],
+            selectedCourseId: null,
+        };
+    },
+    methods: {
+        refreshCourses() {
+            this.courses = this.api.getCourses().map(c => ({
+                id: c.official_name,
+                'Official Name': c.official_name,
+                'Display Name': c.display_name || '-'
+            }));
+        },
+        setSelectedCourse(id) {
+            this.selectedCourseId = id;
+        },
+        removeSelectedCourse() {
+            this.api.removeCourse(this.selectedCourseId);
+            this.selectedCourseId = null;
+            this.refreshCourses();
+        }
+    },
+    computed: {
+        hasSelectedCourse() {
+            return this.selectedCourseId !== null;
+        }
+    },
+    mounted() {
+        this.refreshCourses();
+    },
     template: `
     <div class="mod-gui-screen">
         <div class="bld fs18">Courses</div>
+        <div>
+            <v-selectable-list id="select_course" :options="courses" @select="setSelectedCourse($event)">
+            </v-selectable-list>
+        </div>
+        <div class="mod-button-group">
+            <v-button text="Add course" @click="$emit('setscreen', AddCourseScreenComponent)" />
+            <v-button :disabled="!hasSelectedCourse" text="Edit course" />
+            <v-button :disabled="!hasSelectedCourse" text="Remove course" @click="removeSelectedCourse" />
+        </div>
         <div><v-button text="Go Back" @click="$emit('goback')" /></div>
+    </div>
+    `,
+    emits: ['setscreen', 'goback'],
+    components: {
+        "v-button": ButtonComponent,
+        "v-selectable-list": SelectableListComponent,
+    },
+};
+
+const AddCourseScreenComponent = {
+    inject: ['api'],
+    data() {
+        return {
+            courseId: '',
+            courseDisplayName: '',
+            error: '',
+        };
+    },
+    methods: {
+        save() {
+            if(this.api.getCourses().some(c => c.official_name === this.courseId)) {
+                this.showError(`There is already a course with code '${this.courseId}'.`);
+                return;
+            }
+            this.api.addCourse(this.courseId, this.courseDisplayName);
+            this.$emit('goback');
+        },
+        showError(e) {
+            this.error = e;
+        },
+        dismissError() {
+            this.error = '';
+        }
+    },
+    template: `
+    <div class="mod-gui-screen mod-error" v-if="error">
+        <div>{{ error }}</div>
+        <v-button text="Dismiss" @click="dismissError" />
+    </div>
+    <div class="mod-gui-screen" v-else>
+        <div class="bld fs18">Add New Course</div>
+        <table style="width: 100%;">
+            <thead></thead>
+            <tbody>
+                <tr>
+                    <td>Unique Code</td>
+                    <td><input type="text" v-model="courseId"></input></td>
+                </tr>
+                <tr>
+                    <td>Display Name</td>
+                    <td><input type="text" v-model="courseDisplayName"></input></td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="mod-button-group">
+            <div><v-button text="Save" @click="save" /></div>
+            <div><v-button text="Cancel" @click="$emit('goback')" /></div>
+        </div>
     </div>
     `,
     emits: ['goback'],
@@ -714,7 +817,6 @@ const AddStyleScreenComponent = {
     },
     methods: {
         save() {
-            console.log(this.colorDark, this.colorLight);
             if(this.api.getStyles().some(s => s.id === this.styleId)) {
                 this.showError(`There is already a style with id '${this.styleId}'.`);
                 return;
@@ -730,7 +832,7 @@ const AddStyleScreenComponent = {
         }
     },
     template: `
-    <div class="mod-error alert-content" v-if="error">
+    <div class="mod-gui-screen mod-error" v-if="error">
         <div>{{ error }}</div>
         <v-button text="Dismiss" @click="dismissError" />
     </div>
@@ -766,13 +868,208 @@ const AddStyleScreenComponent = {
 };
 
 const TicketsScreenComponent = {
+    inject: ['api'],
+    data() {
+        return {
+            AddTicketScreenComponent,
+            tickets: [],
+            selectedTicketId: null,
+        };
+    },
+    methods: {
+        refreshTickets() {
+            this.tickets = this.api.getTickets().map(t => ({
+                id: t.id,
+                'Course': t.course_event.course.official_name,
+                'Day': DAY_NAMES[t.course_event.time_of_week.day],
+                'Time': kosTimeToString(t.course_event.time_of_week)
+            }));
+        },
+        setSelectedTicket(id) {
+            this.selectedTicketId = id;
+        },
+        removeSelectedTicket() {
+            this.api.removeTicket(this.selectedTicketId);
+            this.selectedTicketId = null;
+            this.refreshTickets();
+        }
+    },
+    computed: {
+        hasSelectedTicket() {
+            return this.selectedTicketId !== null;
+        }
+    },
+    mounted() {
+        this.refreshTickets();
+    },
     template: `
     <div class="mod-gui-screen">
         <div class="bld fs18">Tickets</div>
+        <div class="mod-list-container">
+            <v-selectable-list id="select_ticket" :options="tickets" @select="setSelectedTicket($event)">
+            </v-selectable-list>
+        </div>
+        <div class="mod-button-group">
+            <v-button text="Add ticket" @click="$emit('setscreen', AddTicketScreenComponent)" />
+            <v-button :disabled="!hasSelectedTicket" text="Edit ticket" />
+            <v-button :disabled="!hasSelectedTicket" text="Remove ticket" @click="removeSelectedTicket" />
+        </div>
         <div><v-button text="Go Back" @click="$emit('goback')" /></div>
     </div>
     `,
+    emits: ['setscreen', 'goback'],
+    components: {
+        "v-button": ButtonComponent,
+        "v-selectable-list": SelectableListComponent,
+    }
+};
+
+const AddTicketScreenComponent = {
     inject: ['api'],
+    data() {
+        return {
+            courses: [],
+            styles: [],
+            daysOfWeek: DAY_NAMES,
+            weekParityOptions: [
+                { text: 'Odd Weeks', value: KosWeekParity.odd_weeks },
+                { text: 'Even Weeks', value: KosWeekParity.even_weeks },
+                { text: 'Every Week', value: KosWeekParity.all_weeks },
+            ],
+            error: '',
+            // required
+            courseId: '',
+            beginHour: 0,
+            beginMinute: 0,
+            endHour: 0,
+            endMinute: 0,
+            dayOfWeek: 0,
+            styleId: '',
+            // optional
+            locationGeneral: '',
+            locationSpecific: '',
+            parallelCode: '',
+            teacherName: '',
+            weekParity: KosWeekParity.all_weeks
+        };
+    },
+    methods: {
+        checkRequiredFields() {
+            if(!this.courseId) {
+                throw new Error('You must select a course.');
+            }
+            if(!this.styleId) {
+                throw new Error('You must select a style.');
+            }
+        },
+        save() {
+            try {
+                this.checkRequiredFields();
+                const ticket = this.api.createTicketWhich
+                    .belongsToCourse(this.courseId)
+                    .takesPlaceAtTime({
+                        day: this.dayOfWeek,
+                        begin_hour: this.beginHour,
+                        begin_minute: this.beginMinute,
+                        end_hour: this.endHour,
+                        end_minute: this.endMinute,
+                    }, this.weekParity || KosWeekParity.all_weeks)
+                    .hasStyle(this.styleId);
+                if(this.locationGeneral || this.locationSpecific)
+                    ticket.takesPlaceAtLocation({general: this.locationGeneral, specific: this.locationSpecific});
+                if(this.parallelCode)
+                    ticket.hasParallelCode(this.parallelCode);
+                if(this.teacherName)
+                    ticket.isTaughtBy(this.teacherName);
+
+                this.api.addTicket(ticket);
+                this.$emit('goback');
+            }
+            catch(e) {
+                this.showError(e.message);
+            }
+        },
+        showError(e) {
+            this.error = e;
+        },
+        dismissError() {
+            this.error = '';
+        }
+    },
+    mounted() {
+        this.courses = this.api.getCourses().map(c => c.official_name);
+        this.styles = this.api.getStyles().map(s => s.id);
+    },
+    template: `
+    <div class="mod-gui-screen mod-error" v-if="error">
+        <div>{{ error }}</div>
+        <v-button text="Dismiss" @click="dismissError" />
+    </div>
+    <div class="mod-gui-screen" v-else>
+        <div class="bld fs18">Add New Ticket</div>
+        <table style="width: 100%;">
+            <thead></thead>
+            <tbody>
+                <tr>
+                    <td>Course</td>
+                    <td><select v-model="courseId" class="w100">
+                        <option value="" disabled selected>Select a course...</option>
+                        <option v-for="course in courses" :value="course">{{ course }}</option>
+                    </select></td>
+                </tr>
+                <tr>
+                    <td>Style</td>
+                    <td><select v-model="styleId" class="w100">
+                        <option value="" disabled selected>Select a style...</option>
+                        <option v-for="style in styles" :value="style">{{ style }}</option>
+                    </select></td>
+                </tr>
+                <tr>
+                    <td>Day & Time</td>
+                    <td>
+                        <select class="w50" v-model="dayOfWeek">
+                            <option v-for="(day, i) in daysOfWeek" :value="i" :selected="i === 0">{{ day }}</option>
+                        </select>
+                        <select class="w50" v-model="weekParity">
+                            <option v-for="option in weekParityOptions" :value="option.value">{{ option.text }}</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td>
+                        <div class="mod-row">
+                            <input class="w3em" type="number" v-model="beginHour" min="0" max="23"></input> : <input class="w3em" type="number" v-model="beginMinute" min="0" max="59"></input>
+                            \u0020\u2013\u0020
+                            <input class="w3em" type="number" v-model="endHour" min="0" max="23"></input> : <input class="w3em" type="number" v-model="endMinute" min="0" max="59"></input>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Location</td>
+                    <td>
+                        <div class="mod-row">
+                            <input type="text" class="w50" placeholder="General (normal)" v-model="locationGeneral"></input>
+                            <input type="text" class="w50" placeholder="Specific (bold)" v-model="locationSpecific"></input>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Parallel Code</td>
+                    <td><input type="text" class="w100" placeholder="e.g. 1P" v-model="parallelCode"></input></td>
+                </tr>
+                <tr>
+                    <td>Teacher</td>
+                    <td><input type="text" class="w100" v-model="teacherName"></input></td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="mod-button-group">
+            <div><v-button text="Save" @click="save" /></div>
+            <div><v-button text="Cancel" @click="$emit('goback')" /></div>
+        </div>
+    </div>
+    `,
     emits: ['goback'],
     components: {
         "v-button": ButtonComponent,
@@ -847,6 +1144,12 @@ const ModAppStyles = `
 .w100 {
     width: 100%;
 }
+.w50 {
+    width: 50%;
+}
+.w3em {
+    width: 3em;
+}
 .fs18 {
     font-size: 18px;
 }
@@ -870,6 +1173,10 @@ const ModAppStyles = `
     width: 1em;
     height: 1em;
     margin-right: 0.25em;
+}
+.mod-list-container {
+    max-height: 240px;
+    overflow: auto;
 }
 `;
 
