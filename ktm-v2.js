@@ -273,16 +273,18 @@ class Ticket {
 
 class ModApi {
     constructor() {
-        this._styles = {
-            lecture: {
+        this._styles = [
+            {
+                id: 'lecture',
                 color_dark: '#F0AB00',
                 color_light: '#fceecc'
             },
-            seminar: {
+            {
+                id: 'seminar',
                 color_dark: '#A2AD00',
                 color_light: '#f6f7e6'
             }
-        }
+        ]
         this._courses = []
         this._tickets = []
         this._root = document.querySelector('.schedule-grid')
@@ -310,7 +312,7 @@ class ModApi {
             // parse CourseEvent
             const course_event = {
                 course: course_ref,
-                type: this._styles[element.querySelector('.ticket-wrapper').classList.item(1)],
+                type: this._styles.find(s => s.id === element.querySelector('.ticket-wrapper').classList.item(1)),
                 time_of_week: this._parseKosTime(element),
                 week_parity: element.querySelector('.ticket-week')?.innerHTML || KosWeekParity.all_weeks,
                 parallel: element.querySelector('.d-flex > .base-box.box.box-parallel > span > span')?.innerHTML,
@@ -366,19 +368,19 @@ class ModApi {
     }
 
     addStyle(class_name, color_dark, color_light) {
-        if(Object.keys(this._styles).includes(class_name))
+        if(this._styles.find(s => s.id === class_name))
             throw new Error(`There is already a style with the name '${class_name}. `
                 + `Please choose another name or use the updateStyle method.'`)
         if(!/^[a-zA-Z_-][a-zA-Z0-9_-]*$/.test(class_name))
             throw new Error(`Style names have to follow css class naming conventions:\n`
                 + `A valid name should start with an underscore (_), a hyphen (-) or a letter `
                 + `(a-z)/(A-Z) which is followed by any numbers, hyphens, underscores, letters.`)
-        this._styles[class_name] = { color_dark, color_light }
+        this._styles.push({id: class_name, color_dark, color_light })
         this._refreshTickets(ticket => ticket.course_event.type === class_name)
     }
 
     updateStyle(class_name, fn_update) {
-        const style = this._styles[class_name]
+        const style = this._styles.find(s => s.id === class_name)
         if(!style)
             throw new Error(`Could not find a style with name '${class_name}.'`)
         fn_update(style)
@@ -386,7 +388,7 @@ class ModApi {
     }
 
     removeStyle(class_name) {
-        delete this._styles[class_name]
+        this._styles = this._styles.filter(s => s.id !== class_name)
         this._refreshTickets(ticket => ticket.course_event.type === class_name)
     }
 
@@ -480,7 +482,7 @@ class TicketBuilder {
     }
 
     hasStyle(style) {
-        const style_ref = this._styles[style]
+        const style_ref = this._styles.find(s => s.id === style)
         if(!style_ref)
             throw new Error(`Could not find a style with classname '${style}.'`)
         this._course_event.style = style_ref
@@ -525,278 +527,380 @@ class TicketBuilder {
     }
 }
 
-class Button {
-    constructor(screen, text, action) {
-        this.screen = screen;
-        this.text = text;
-        this.action = action;
-        this.createElement();
-    }
-
-    createElement() {
-        const button = document.createElement('button');
-        button.innerText = this.text;
-        button.classList.add(
-            ...'btn button-container btn-primary btn-md button-component w100'.split(' ')
-        );
-        button.addEventListener('click', () => this.action(this.screen));
-        this.element = button;
+class SingleVue {
+    static async getInstance() {
+        if(!SingleVue.instance)
+            SingleVue.instance = await new Promise((resolve, _) => {
+                const scriptEl = document.createElement('script');
+                scriptEl.setAttribute('src', 'https://unpkg.com/vue@3');
+                scriptEl.addEventListener('load', function() { resolve(Vue) });
+                document.head.appendChild(scriptEl);
+            });
+        return SingleVue.instance;
     }
 }
 
-class SelectableList {
-    constructor(header, dataSource) {
-        this.id = generateUUID();
-        this.header = header;
-        this.header.push('Selected');
-        this.dataSource = dataSource;
-        this.createElement();
-    }
+const ButtonComponent = {
+    props: {
+        text: {
+            type: String,
+            default: null
+        },
+    },
+    emits: ['click'],
+    template: `
+        <button
+            class="btn button-container btn-primary btn-md button-component w100"
+            @click="$emit('click', $event)"
+        >
+            {{ text }}
+        </button>
+    `
+};
 
-    createElement() {
-        this.element = document.createElement('div');
-
-        const tableEl = document.createElement('div');
-        tableEl.classList.add(...'table table-hover mod-selectable-list'.split(' '));
-        this.element.appendChild(tableEl);
-        
-        /* Add header */
-        const thead = document.createElement('thead');
-        tableEl.appendChild(thead);
-
-        const thead_tr = document.createElement('tr');
-        thead.appendChild(thead_tr);
-
-        for(const col of this.header) {
-            const colEl = document.createElement('th');
-            const colElDiv = document.createElement('div');
-            colElDiv.innerText = col;
-            colEl.appendChild(colElDiv);
-            thead_tr.appendChild(colEl);
+const SelectableListComponent = {
+    props: {
+        id: {
+            type: String,
+            default: () => generateUUID()
+        },
+        options: {
+            type: Array,
+            default: [],
         }
+    },
+    computed: {
+        header() {
+            return Object.keys(this.options[0] || {}).filter(k => k !== 'id');
+        },
+    },
+    template: `
+        <table v-if="options && options.length" style="width: 100%;">
+            <thead>
+                <tr>
+                    <th v-for="column in header" :id="column">{{ column }}</th>
+                    <th>X</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="option in options" :id="option.id">
+                    <td v-for="column in header" :id="column">
+                        <div class="mod-color-detail" v-if="typeof(option[column]) === 'object' && option[column].type === 'color'">
+                            <div class="mod-color-box" :style="{ backgroundColor: option[column].value }"></div>
+                            {{ option[column].value }}
+                        </div>
+                        <div v-else>{{ option[column] }}</div>
+                    </td>
+                    <td>
+                        <input type="radio" :name="id" :value="option.id" @input="$emit('select', option.id)">
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <div v-else>
+            No data
+        </div>
+    `,
+    emits: ['select']
+};
 
-        const tbody = document.createElement('tbody');
-        tableEl.appendChild(tbody);
-
-        // also keep a reference to the tbody
-        this.tbody = tbody;
+const MainScreenComponent = {
+    data() {
+        return {
+            CoursesScreenComponent,
+            StylesScreenComponent,
+            TicketsScreenComponent
+        };
+    },
+    emits: ['setscreen'],
+    template: `
+    <div class="mod-gui-screen">
+        <div class="bld fs18">Kos Schedule Mod v2</div>
+        <div><v-button text="Courses" @click="$emit('setscreen', CoursesScreenComponent)" /></div>
+        <div><v-button text="Styles" @click="$emit('setscreen', StylesScreenComponent)" /></div>
+        <div><v-button text="Tickets" @click="$emit('setscreen', TicketsScreenComponent)" /></div>
+    </div>
+    `,
+    components: {
+        "v-button": ButtonComponent,
     }
+};
 
-    update() {
-        /* Remove previous data */
-        for(let i = 0; i < this.tbody.children.length; i++) {
-            this.tbody.children[i].parentElement.removeChild(
-                this.tbody.children[i]
-            );
+const CoursesScreenComponent = {
+    template: `
+    <div class="mod-gui-screen">
+        <div class="bld fs18">Courses</div>
+        <div><v-button text="Go Back" @click="$emit('goback')" /></div>
+    </div>
+    `,
+    emits: ['goback'],
+    components: {
+        "v-button": ButtonComponent,
+    }
+};
+
+const StylesScreenComponent = {
+    inject: ['api'],
+    data() {
+        return {
+            AddStyleScreenComponent,
+            styles: [],
+            selectedStyleId: null,
+        };
+    },
+    methods: {
+        refreshStyles() {
+            this.styles = this.api.getStyles().map(s => ({
+                id: s.id,
+                'Id': s.id,
+                'Background Colour': {
+                    type: 'color',
+                    value: s.color_light,
+                },
+                'Accent Colour': {
+                    type: 'color',
+                    value: s.color_dark,
+                }
+            }));
+        },
+        setSelectedStyle(id) {
+            this.selectedStyleId = id;
+        },
+        removeSelectedStyle() {
+            this.api.removeStyle(this.selectedStyleId);
+            this.selectedStyleId = null;
+            this.refreshStyles();
         }
+    },
+    computed: {
+        hasSelectedStyle() {
+            return this.selectedStyleId !== null;
+        }
+    },
+    mounted() {
+        this.refreshStyles();
+    },
+    template: `
+    <div class="mod-gui-screen">
+        <div class="bld fs18">Styles</div>
+        <div>
+            <v-selectable-list id="select_style" :options="styles" @select="setSelectedStyle($event)">
+            </v-selectable-list>
+        </div>
+        <div class="mod-button-group">
+            <v-button text="Add style" @click="$emit('setscreen', AddStyleScreenComponent)" />
+            <v-button :disabled="!hasSelectedStyle" text="Edit style" />
+            <v-button :disabled="!hasSelectedStyle" text="Remove style" @click="removeSelectedStyle" />
+        </div>
+        <div><v-button text="Go Back" @click="$emit('goback')" /></div>
+    </div>
+    `,
+    emits: ['setscreen', 'goback'],
+    components: {
+        "v-button": ButtonComponent,
+        "v-selectable-list": SelectableListComponent,
+    }
+};
 
-        /* Add rows */
-        for(const row of this.dataSource()) {
-            const tr = document.createElement('tr');
-            this.tbody.appendChild(tr);
-
-            for(const col of row.columns) {
-                const colEl = document.createElement('td');
-                tr.appendChild(colEl);
-
-                const colElDiv = document.createElement('div');
-                colEl.appendChild(colElDiv);
-
-                colElDiv.innerText = col === null ? '-' : col;
+const AddStyleScreenComponent = {
+    inject: ['api'],
+    data() {
+        return {
+            styleId: '',
+            colorLight: '#fceecc',
+            colorDark: '#F0AB00',
+            error: '',
+        };
+    },
+    methods: {
+        save() {
+            console.log(this.colorDark, this.colorLight);
+            if(this.api.getStyles().some(s => s.id === this.styleId)) {
+                this.showError(`There is already a style with id '${this.styleId}'.`);
+                return;
             }
-            /* Add radio button */
-            const colEl = document.createElement('td');
-            tr.appendChild(colEl);
-
-            const colElRadio = document.createElement('input');
-            colEl.appendChild(colElRadio);
-
-            colElRadio.setAttribute('type', 'radio');
-            colElRadio.setAttribute('id', `selectable_id_${row.id}`);
-            colElRadio.setAttribute('name', `selectable_name_${this.id}`);
-            colElRadio.setAttribute('value', row.id);
+            this.api.addStyle(this.styleId, this.colorDark, this.colorLight);
+            this.$emit('goback');
+        },
+        showError(e) {
+            this.error = e;
+        },
+        dismissError() {
+            this.error = '';
         }
+    },
+    template: `
+    <div class="mod-error alert-content" v-if="error">
+        <div>{{ error }}</div>
+        <v-button text="Dismiss" @click="dismissError" />
+    </div>
+    <div class="mod-gui-screen" v-else>
+        <div class="bld fs18">Add New Style</div>
+        <table style="width: 100%;">
+            <thead></thead>
+            <tbody>
+                <tr>
+                    <td>Id</td>
+                    <td><input type="text" v-model="styleId"></input></td>
+                </tr>
+                <tr>
+                    <td>Background Colour</td>
+                    <td><input type="color" v-model="colorLight"></input></td>
+                </tr>
+                <tr>
+                    <td>Accent Colour</td>
+                    <td><input type="color" v-model="colorDark"></td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="mod-button-group">
+            <div><v-button text="Save" @click="save" /></div>
+            <div><v-button text="Cancel" @click="$emit('goback')" /></div>
+        </div>
+    </div>
+    `,
+    emits: ['goback'],
+    components: {
+        "v-button": ButtonComponent,
     }
+};
 
-    getValue() {
-        const radios = document.getElementsByName(`selectable_name_${this.id}`);
-        for(let i = 0; i < radios.length; i++)
-            if(radios[i].checked)
-                return radios[i].value;
-        return null;
+const TicketsScreenComponent = {
+    template: `
+    <div class="mod-gui-screen">
+        <div class="bld fs18">Tickets</div>
+        <div><v-button text="Go Back" @click="$emit('goback')" /></div>
+    </div>
+    `,
+    inject: ['api'],
+    emits: ['goback'],
+    components: {
+        "v-button": ButtonComponent,
     }
+};
+
+const ModApp = {
+    template: `
+        <component
+            :is="screen"
+            @setscreen="setScreen($event)"
+            @goback="setPreviousScreen"
+        ></component>
+    `,
+    components: {
+        MainScreenComponent,
+    },
+    data() {
+        return {
+            screen: MainScreenComponent,
+            screenHistory: [MainScreenComponent],
+        };
+    },
+    methods: {
+        setScreen(component) {
+            if(component) {
+                this.screen = component;
+                this.screenHistory.push(component);
+            }
+        },
+        setPreviousScreen() {
+            if(this.screenHistory.length > 1) {
+                this.screenHistory = this.screenHistory.slice(0, -1);
+                this.screen = this.screenHistory[
+                    this.screenHistory.length - 1
+                ];
+            }
+        },
+    },
+};
+
+const ModAppStyles = `
+.kos-timetable-mod-gui {
+    width: 400px;
+    position: fixed;
+    bottom: 25px;
+    right: 25px;
+    background-color: white;
+    border: 2px solid #0065bd;
 }
-
-class GuiScreen {
-    constructor() {
-        this.element = document.createElement('div');
-        this.element.classList.add('mod-gui-screen');
-        this.reactiveComponents = {};
-    }
-
-    text(text, classes = null) {
-        const el = document.createElement('div');
-        el.innerText = text;
-        if(classes)
-            el.classList.add(...classes.split(' '));
-        this.element.appendChild(el);
-        return this;
-    }
-
-    button(text, action) {
-        const button = new Button(this, text, action);
-        const el = document.createElement('div');
-        el.appendChild(button.element);
-        this.element.appendChild(el);
-        return this;
-    }
-
-    buttonGroup(buttons) {
-        const el = document.createElement('div');
-        el.classList.add('mod-button-group');
-        for(const button of buttons)
-            el.appendChild(new Button(this, button.text, button.action).element);
-        this.element.appendChild(el);
-        return this;
-    }
-
-    selectableList(id, sList) {
-        if(Object.keys(this.reactiveComponents).includes(id))
-            throw new Error(`There is already a reactive component with id ${id}`);
-        this.reactiveComponents[id] = sList;
-        this.element.appendChild(sList.element);
-        return this;
-    }
-
-    update() {
-        for(let componentId in this.reactiveComponents)
-            this.reactiveComponents[componentId].update();
-    }
+.mod-gui-screen {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
 }
+.mod-gui-screen > div {
+    width: 100%;
+}
+.mod-selectable-list {
+    height: 200px;
+    overflow: auto;
+}
+.mod-button-group {
+    display: flex;
+    flex-direction: row;
+}
+.mod-button-group > * {
+    flex: 1;
+}
+.w100 {
+    width: 100%;
+}
+.fs18 {
+    font-size: 18px;
+}
+.bld {
+    font-weight: bold;
+}
+.mod-row {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+}
+.mod-select-header {
+    font-weight: bold;
+}
+.mod-color-detail {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+.mod-color-box {
+    width: 1em;
+    height: 1em;
+    margin-right: 0.25em;
+}
+`;
 
 class ModGui {
-    constructor() {
-        this.api = new ModApi();
+    constructor() {}
 
-        this.guiStylesheet = document.createElement('style');
-        this.guiStylesheet.innerHTML = `
-            .kos-timetable-mod-gui {
-                width: 400px;
-                position: fixed;
-                bottom: 25px;
-                right: 25px;
-                background-color: white;
-                border: 2px solid #0065bd;
-            }
-            .mod-gui-screen {
-                width: 100%;
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
-                padding: 12px;
-            }
-            .mod-gui-screen > div {
-                width: 100%;
-            }
-            .mod-selectable-list {
-                height: 200px;
-                overflow: auto;
-            }
-            .mod-button-group {
-                display: flex;
-                flex-direction: row;
-            }
-            .mod-button-group > * {
-                flex: 1;
-            }
-            .w100 {
-                width: 100%;
-            }
-            .fs18 {
-                font-size: 18px;
-            }
-            .bld {
-                font-weight: bold;
-            }
-        `;
-        document.head.appendChild(this.guiStylesheet);
+    /* cannot await asynchronous calls in constructor */
+    static async create() {
+        const that = new ModGui();
+        that.api = new ModApi();
+        that.app = await ModGui.createApp(ModApp);
+        that.app.provide('api', that.api);
 
-        this._guiRootElement = document.createElement('div');
-        this._guiRootElement.classList.add('kos-timetable-mod-gui');
-        document.body.append(this._guiRootElement);
+        that.guiStylesheet = document.createElement('style');
+        that.guiStylesheet.innerHTML = ModAppStyles;
+        document.head.appendChild(that.guiStylesheet);
 
-        this.screens = {
-            main: new GuiScreen()
-                .text('Kos Schedule Mod v2', 'bld fs18')
-                .button('Courses', () => this.setNewScreen('courses'))
-                .button('Styles', () => this.setNewScreen('styles'))
-                .button('Tickets', () => this.setNewScreen('tickets')),
-            courses: new GuiScreen()
-                .text('Courses', 'bld fs18')
-                .selectableList('courses', new SelectableList(
-                    ['Code', 'Custom Name'],
-                    () => this.api.getCourses().map(course => ({
-                        id: course.official_name,
-                        columns: [
-                            course.official_name,
-                            course.display_name || null
-                        ]
-                    }))
-                ))
-                .buttonGroup([
-                    {
-                        text: 'Add Course',
-                        action: () => { console.log("add course"); }
-                    },
-                    {
-                        text: 'Edit Course',
-                        action: (screen) => {
-                            console.log("edit course: " + screen.reactiveComponents['courses'].getValue());
-                        }
-                    },
-                    {
-                        text: 'Remove Course',
-                        action: (screen) => {
-                            console.log("remove course: " + screen.reactiveComponents['courses'].getValue());
-                        }
-                    },
-                ])
-                .button('Back', () => this.setPreviousScreen()),
-            editCourseScreen: new GuiScreen()
-                .text('Edit Course Display Name', 'bld fs18')
-                .button('Back', () => this.setPreviousScreen()),
-            styles: new GuiScreen()
-                .text('Styles', 'bld fs18')
-                .button('Back', () => this.setPreviousScreen()),
-            tickets: new GuiScreen()
-                .text('Tickets', 'bld fs18')
-                .button('Back', () => this.setPreviousScreen()),
-        };
-        this.screenHistory = [];
-        this.setNewScreen('main');
+        that._guiRootElement = document.createElement('div');
+        that._guiRootElement.classList.add('kos-timetable-mod-gui');
+        document.body.append(that._guiRootElement);
+
+        that.app.mount(that._guiRootElement);
+        return that;
     }
 
-    setScreen(id) {
-        for(let i = 0; i < this._guiRootElement.children.length; i++)
-        this._guiRootElement.children[i].parentElement.removeChild(
-            this._guiRootElement.children[i]
-        );
-        this._guiRootElement.appendChild(this.screens[id].element);
-        this.screens[id].update();
-    }
-
-    setNewScreen(id) {
-        this.setScreen(id);
-        this.screenHistory.push(id);
-    }
-
-    setPreviousScreen() {
-        if(this.screenHistory.length > 1)
-            this.screenHistory.splice(-1);
-        this.setScreen(this.screenHistory.at(-1));
+    static async createApp(config) {
+        const vue = await SingleVue.getInstance();
+        return vue.createApp(config);
     }
 }
-let gui = new ModGui();
+let gui = await ModGui.create();
 
 
 
