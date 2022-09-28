@@ -807,6 +807,11 @@ const EditCourseScreenComponent = {
             this.$emit('goback');
         },
     },
+    mounted() {
+        this.courseDisplayName = this.api.getCourses().find(c =>
+            c.official_name === this.courseId
+        ).display_name || '';
+    },
     template: `
     <div class="mod-gui-screen" v-else>
         <div class="bld fs18">Edit course '{{ courseId }}'</div>
