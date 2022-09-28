@@ -363,7 +363,7 @@ class ModApi {
     }
 
     _refreshTickets(predicate) {
-        this._tickets.filter(predicate).forEach(ticket => ticket.refreshDom())
+        this._tickets.filter(predicate).forEach(ticket => ticket.refreshDom());
     }
 
     _removeTickets(predicate) {
@@ -400,6 +400,16 @@ class ModApi {
     }
 
     removeStyle(class_name) {
+        // only allow removing a style if no tickets are using it
+        this._tickets.forEach(t => {
+            if(t.course_event.style.id === class_name)
+                throw new Error(
+                    `Style ${class_name} is used by ticket (Course ${t.course_event.course.official_name}, ` +
+                    `${DAY_NAMES[t.course_event.time_of_week.day]} ${kosTimeToString(t.course_event.time_of_week)}).\n` +
+                    `Cannot remove style that is in use.`
+                );
+        });
+
         this._styles = this._styles.filter(s => s.id !== class_name)
         this._refreshTickets(ticket => ticket.course_event.style.id === class_name)
     }
@@ -474,7 +484,14 @@ class TicketBuilder {
     constructor(courses, styles) {
         this._courses = courses
         this._styles = styles
-        this._course_event = {}
+        this._course_event = {
+            course: {},
+            style: {},
+            location: {},
+            time_of_week: {},
+            teacher: '',
+            weekParity: KosWeekParity.all_weeks
+        }
         this._uuid = generateUUID()
     }
 
@@ -610,7 +627,7 @@ const SelectableListComponent = {
                         <div v-else>{{ option[column] }}</div>
                     </td>
                     <td>
-                        <input type="radio" :name="id" :value="option.id" @input="$emit('select', option.id)">
+                        <input type="radio" :name="id" :value="option.id" @input="$emit('select', option.id)"></input>
                     </td>
                 </tr>
             </tbody>
@@ -754,11 +771,11 @@ const AddCourseScreenComponent = {
             <tbody>
                 <tr>
                     <td>Unique Code</td>
-                    <td><input type="text" v-model="courseId"></input></td>
+                    <td><input class="w100" type="text" v-model="courseId"></input></td>
                 </tr>
                 <tr>
                     <td>Display Name</td>
-                    <td><input type="text" v-model="courseDisplayName"></input></td>
+                    <td><input class="w100" type="text" v-model="courseDisplayName"></input></td>
                 </tr>
             </tbody>
         </table>
@@ -798,7 +815,7 @@ const EditCourseScreenComponent = {
             <tbody>
                 <tr>
                     <td>Display Name</td>
-                    <td><input type="text" v-model="courseDisplayName"></input></td>
+                    <td><input class="w100" type="text" v-model="courseDisplayName"></input></td>
                 </tr>
             </tbody>
         </table>
@@ -822,6 +839,7 @@ const StylesScreenComponent = {
             EditStyleScreenComponent,
             styles: [],
             selectedStyleId: null,
+            error: '',
         };
     },
     methods: {
@@ -843,9 +861,20 @@ const StylesScreenComponent = {
             this.selectedStyleId = id;
         },
         removeSelectedStyle() {
-            this.api.removeStyle(this.selectedStyleId);
-            this.selectedStyleId = null;
-            this.refreshStyles();
+            try {
+                this.api.removeStyle(this.selectedStyleId);
+                this.selectedStyleId = null;
+                this.refreshStyles();
+            }
+            catch(e) {
+                this.showError(e);
+            }
+        },
+        showError(e) {
+            this.error = e.message;
+        },
+        dismissError() {
+            this.error = '';
         }
     },
     computed: {
@@ -857,7 +886,11 @@ const StylesScreenComponent = {
         this.refreshStyles();
     },
     template: `
-    <div class="mod-gui-screen">
+    <div class="mod-gui-screen mod-error" v-if="error">
+        <div>{{ error }}</div>
+        <v-button text="Dismiss" @click="dismissError" />
+    </div>
+    <div class="mod-gui-screen" v-else>
         <div class="bld fs18">Styles</div>
         <div>
             <v-selectable-list id="select_style" :options="styles" @select="setSelectedStyle($event)">

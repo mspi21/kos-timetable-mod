@@ -1,149 +1,275 @@
-# KOS Timetable Mod
+# KOS Schedule Mod
 
-The new KOS Timetable looks nice, doesn't it? Wouldn't it be nice to be able to add all of your other subjects (such as Physical Ed, classes you've swapped, regular activities from outside the class) to your existing timetable and print it out in one single format?
+This is a mod for the (new) KOS schedule website.
 
-**Well, that's what this javascript class helps you to do!**
+It creates a small GUI that allows you to **customise your schedule** in various ways, including renaming your courses, changing colours, adding new events, styles, etc.
 
-## Disclaimer
+Besides that, it also exposes an API class that allows you to do all of the mentioned things programatically from the browser console.
 
-Note that all of the edits you make to the table are **client-side only, purely visual and temporary!** The goal of this mod (for now) is merely to allow you to _print_ your schedule in a way that looks nice.
+## Basic Usage
 
-## Usage
+Because this is a client-side add-on, it can only be run manually by the user by entering code in the developer console. The console is available in most desktop browsers like Firefox and Chrome.
 
-The idea is that you copy the contents of the file above, paste it into the javascript console in your browser and then use a couple simple methods to manipulate the timetable.
+> **Disclaimer**: It is generally unsafe to paste any code that you do not trust into your developer console, as that can result in a [Self-XSS attack](https://en.wikipedia.org/wiki/Self-XSS). Always make sure you understand the contents of the code you're running in your browser.
 
-### Adding simple tickets
+To use the mod:
 
-Let's say your timetable looks like this:
+1. Download the file named `ktm-v2.js` or view its raw contents on Github.
+2. Open the [New KOS schedule website](https://new.kos.cvut.cz/schedule) and sign in with your CTU credentials.
+3. While on the page, open the Javascript developer console in your browser by right clicking on the page, selecting 'Inspect' and switching to the 'Console' tab, or by pressing `{Ctrl | Super | Command}+Shift+C`.
+4. Copy the contents of the file to the developer console (this may require confirmation, see the disclaimer above) and press `Return`.
+5. You should now see the mod GUI in the bottom-right corner of your screen. To close and reopen the GUI, type `gui.close()` and `gui.open()` respectively into the console.
 
-![image](https://user-images.githubusercontent.com/78057064/151667773-7ffa81e0-412c-4652-9cab-117ca9e7182b.png)
+The `gui` variable created on the last line of the script is an object managing the whole gui app.
 
-In order to add any new tickets, first create a new instance of TimetableMod and set your locale (CZ/EN):
-```js
-let tm = new TimetableMod(TimetableMod.LOCALE_CZ);
-//       feel free to use TimetableMod.LOCALE_EN
-```
-
-Let's say you want to add a lecture, seminar or laboratory without adding a custom style (maybe a seminar that you are taking at CTU but which for whatever reason does not appear in your regular timetable). For instance, let's add a BI-GIT.21 seminar taking place every Friday from 16:15 until 17:45.
+To use the API directly without the GUI, either access the `api` property on the `gui` object, or create your own instance by constructing a `ModApi` object:
 
 ```js
-tm.addTicket("seminar", TimetableMod.FRIDAY, TimetableMod.WEEKS_ALL, "16:15 - 17:45", "1C", "BI-GIT.21", "Petr Pulc (+1)", "T9:", "105", 0);
-```
-![image](https://user-images.githubusercontent.com/78057064/151668158-22696186-7340-46da-a7bf-e86777401874.png)
-
-Great, that was a success. For details about each parameter, see [the docs](#documentation).
-
-Say that now you wanted to add a slot for your morning jog that you take on every odd Thursday at 7:30. The first problem you will run into is that every row of the timetable is just "one high", i.e. you can't easily add a ticket at the same place where you already have a class on the even weeks.
-
-We can fix that using the following function:
-```js
-tm.setRowHeights([1,1,1,2,1]);
+gui.api // access instance used by GUI
+let api = new ModApi(); // create new instance
 ```
 
-The table now looks like this and we can add another class at 7:30.
+## Persistence
 
-![image](https://user-images.githubusercontent.com/78057064/151668443-7f35ffe9-e603-43f9-bd16-84b25fb8b9e5.png)
+Note that all of the edits you make to the table are **rendered on the client-side only, purely visual and temporary!** The goal of this mod (for now) is merely to allow you to display or print your schedule in a way that looks nice.
 
-### Adding conflicting tickets and custom colours
+Features to export / load the modified schedule using JSON or enable storing the edits in `localStorage` might be implemented in the future.
 
-To add a class with a "ODD" (or "EVEN") week designation, utilise the third parameter of the addTicket method:
+## Using the GUI
 
-```js
-tm.addTicket("jogging-in-the-morning", TimetableMod.THURSDAY, TimetableMod.WEEKS_ODD, "7:30 - 9:00", "", "My biweekly jog", "", "Praha 7, ", "Stromovka", 1);
-```
-![image](https://user-images.githubusercontent.com/78057064/151668556-ab7bcf1c-66a9-434c-910d-a58f224f2e1e.png)
+### Courses tab
 
-Notice how we set the last parameter (`offsetTop`) from `0` to `1` so that the ticket appears in the second row of Thursday. Also notice that the ticket works fine even if you omit certain information, such as the name of the teacher or the parallel number. Lastly, as you may notice, we didn't use one of the standard four element classes that come with the KOS schedule: `lecture`, `seminar`, `laboratory` and `conflict`. TimetableMod gives you the ability to add custom classes using yet another method:
+A course defines the name shown on schedule tickets, e.g. 'BI-PA1.21' or 'Volleyball'.
 
-```js
-tm.addClassStyle("jogging-in-the-morning", 320);
-```
-![image](https://user-images.githubusercontent.com/78057064/151668996-b7e7eaf2-9404-46bf-b335-1a025be65b23.png)
+The courses tab shows individual courses you've signed up for. It allows you to edit the display names for existing courses and add new courses. You can only create tickets for courses that are shown in this tab.
 
-Here the second parameter is the hue of the colour that you wish to associate with the class, for example, 0 would be red, 220 dark blue, 320 light purple.
-If you wish to specify the background colour and the accent colour directly, see method `__addClassStyleInternal` in [the docs](#documentation).
+Despite being called a course, this entity can be any other user-defined event, such as daily exercise or work schedule event.
 
-### Listing and removing tickets
+### Adding a course
 
-You can access all the tickets that you've added using `tm.addedTickets`. To easily delete the second ticket that you added, use
-```js
-tm.deleteTicket(tm.addedTickets[1]);
-```
+|Input|Required|Description|
+|-----|--------|-----------|
+|Unique Code|yes|Official code for the course. Interally used as an id for the course, therefore multiple instances with the same code cannot exist.|
+|Display Name|no|The name of the course to display on the schedule.|
 
-### Printing
+## Styles tab
 
-When you are done editing your timetable, feel free to press "Print Schedule" on the website and all your changes will carry over to the PDF.
+A style is a named combination of a background colour and an accent colour.
 
-## Documentation
+The styles tab gives you an overview of ticket styles that can be used. The default are 'lecture' (orange), 'seminar' (green), 'laboratory' (blue) and 'conflict' (red).
+
+Changing an existing style automatically updates relevant tickets.
+
+### Adding a style
+
+|Input|Required|Description|
+|-----|--------|-----------|
+|Id|yes|Unique id for the style. Must be a CSS compatible class name.|
+|Background Colour|yes|The background colour of the ticket element.|
+|Accent Colour|yes|The colour of the ticket border.|
+
+## Ticket tab
+
+A ticket is a single element representing a class (lecture, seminar, ...) taken at a specific time. Each ticket represents, so to speak, a 'rectangle' on the schedule.
+
+### Adding a ticket
+
+|Input|Required|Description|
+|-----|--------|-----------|
+|Course|yes|The course this ticket belongs to. If this is a non-official course, it has to be added in the Courses tab.|
+|Style|yes|The style (colours) to use for this ticket. Has to be defined in the Styles tab.|
+|Day & Time|yes|Self-explanatory.|
+|Location|no|'General' location and 'specific' location are simply two strings which will be concatenated together (**not separated by whitespace**) with the latter being rendered in bold.|
+|Parallel Code|no|The code shown on the upper-right corner of a ticket.|
+|Teacher|no|A string shown on the second row of the ticket, by default containing the name of the teacher.|
+
+### Editing tickets
+
+Currently, the course and the style of a ticket cannot be changed. This might be added in a future version.
+
+## Save & Load JSON
+
+Not implemented yet.
+
+## API Documentation
 
 ### constructor
-The constructor takes one parameter, the `locale`. This is only used for even / odd week designation, but is required nonetheless.
 
-**Accepted values** (equivalent):
-|constant               |value|
-|:---------------------:|:---:|
-|TimetableMod.LOCALE_CZ |"CZE"|
-|TimetableMod.LOCALE_EN |"ENG"|
+The constructor takes no arguments. An error is thrown if the schedule root element is not found.
 
-### addedTickets
-Array of DOM elements added by TimetableMod. Useful to quickly access and/or delete created tickets.
+It automatically parses any tickets which are already present in the schedule.
 
-### hyphensToNdashes()
-Simply changes all timespan text from "HH:MM - HH:MM" to "HH:MM&ndash;HH:MM", just like it _should_ be.
+```js
+const api = new ModApi();
+```
 
-### setRowHeights(heights)
-Resizes the rows of the schedule to the numbers given in the parameter.
+### #getStyles()
 
-**Parameters**
-|name       |type            |description                                  |
-|:---------:|:--------------:|:-------------------------------------------:|
-|heights    |Array\<number\>[5]|array containing numbers of rows for each day| 
+Returns an array of registered styles.
 
-**Returns**: `true` if parameter is ok, `false` otherwise
+```js
+api.getStyles();
+// returns
+[
+    {id: "lecture", color_dark: "#F0AB00", color_light: "#fceecc"},
+    ...
+]
+```
 
-### addTicket(className, ticketDayOfWeek, evenOrOddWeeksOnly, ticketTime, parallelNumber, ticketName, ticketTeacher, ticketPlaceGeneral, ticketPlaceSpecific, offsetTop)
-Adds a new ticket to the schedule. Note that `ticketPlaceGeneral` and `ticketPlaceSpecific` will simply be concatenated together with the latter being rendered in **bold**.
+### #addStyle(class_name, color_dark, color_light)
 
-**Parameters**
-|name               |type  |description                                                                 |
-|:-----------------:|:----:|:--------------------------------------------------------------------------:|
-|className          |string|can be 'lecture', 'seminar', 'laboratory' or any other custom class name    |
-|ticketDayOfWeek    |number|day of week, 0-4 or static constants can be used (e.g. TimetableMod.MONDAY) |
-|evenOrOddWeeksOnly |number|one of TimetableMod.WEEKS_ALL, Timetable.WEEKS_ODD, Timetable.WEEKS_EVEN    |
-|ticketTime         |string|time of class in this exact format: "(H)H:MM - (H)H:MM" (24H)               |
-|parallelNumber     |string|code used to designate the parallel (e.g. "107C" or "1P"), can be left empty|
-|ticketName         |string|name of the subject, e.g. "BI-PA2.21" or "BI-LUNCH"                         |
-|ticketTeacher      |string|name of the teacher or any other information appearing under the class name |
-|ticketPlaceGeneral |string|the building where the class takes place (e.g. "TH-A:")                     |
-|ticketPlaceSpecific|string|the classroom number/code (e.g. "PU1" or "349")                             |
-|offsetTop          |number|offset from the top (for rows with height > 1)                             |
+Registers a new style.
 
-**Returns**: `void`
+```js
+api.addStyle('sport', '#dfeedf', '#70c070');
+```
 
-### removeTicket(ticket)
-Removes a ticket from the DOM tree as well as from `addedTickets`.
+### #updateStyle(class_name, fn_update)
 
-|name  |type      |description              |
-|:----:|:--------:|:-----------------------:|
-|ticket|DOMElement|the element to be deleted|
+Updates a style.
 
-**Returns**: `true` if element was found in `addedTickets` and deleted, `false` otherwise
+```js
+api.updateStyle('sport', style => {
+    style.color_light = '#dfdfee';
+    style.color_dark = '#7070c0';
+});
+```
 
-### addClassStyle(className, colourHue)
-Adds a class name to be used in `addTicket` instead of standard `lecture`, `seminar`, `laboratory` and `conflict`.
+### #removeStyle(class_name)
 
-_Note_: if you don't want me to automatically generate colours based on a single hue, feel free to use the method `__addClassStyleInternal(className, borderColour, backgroundColour)`.
+Removes a style. The removed style must not be used by any registered tickets.
 
-|name     |type  |description                                   |
-|:-------:|:----:|:--------------------------------------------:|
-|className|string|css-compatible class name (unique if possible)|
-|colourHue|number|colour (hue) to use for this class (0-360)    |
+```js
+api.removeStyle('sport');
+```
 
-### __addClassStyleInternal(className, borderColour, backgroundColour)
-Adds a class name rule, specifying both the border (accent) colour and the background colour to use.
+### #getCourses()
 
-|name            |type  |description                                   |
-|:--------------:|:----:|:--------------------------------------------:|
-|className       |string|css-compatible class name (unique if possible)|
-|borderColour    |string|css-compatible colour value (Hex, RGB, HST...)|
-|backgroundColour|string|css-compatible colour value (Hex, RGB, HST...)|
+Returns an array of registered courses.
+
+```js
+api.getCourses();
+// returns
+[
+    {official_name: "TV1", display_name: "Volleyball"},
+    ...
+]
+```
+
+### #addCourse(official_name, display_name?)
+
+Registers a new course.
+
+```js
+api.addCourse('BI-PA1.21');
+api.addCourse('BI-PA2.21', 'C++ Programming');
+```
+
+### #updateCourse(official_name, fn_update)
+
+Updates a course (currently only its display name).
+
+```js
+api.updateStyle('BI-PA2.21', course => {
+    course.display_name = 'C++ Happiness';
+});
+```
+
+### #removeCourse(official_name)
+
+Removes a course along with all its tickets.
+
+```js
+api.removeCourse('BI-MA2.21');
+```
+
+### #getTickets()
+
+Returns an array of registered tickets.
+
+```js
+api.getTickets();
+// returns
+[
+    {
+        id: "12345-abcde",
+        added_by_user: false,
+        course_event: {
+            course: {...}, // course object
+            style: {...}, // style object
+            time_of_week: {
+                begin_hour: 9,
+                begin_minute: 15,
+                day: 0,
+                end_hour: 10,​​​
+                end_minute: 45
+            },
+            location: {
+                general: "TK:",
+                specific: "BS"
+            },
+            parallel: "1P",
+            teacher: "XYZ"
+        },
+        element: <div>...</div>, // ticket element
+        root: <div>...</div> // schedule root
+    },
+    ...
+]
+```
+
+### #addTicket(ticket_builder)
+
+Adds a new ticket configured with a `TicketBuilder`, which is a helper class equipped with the following methods to make constructing tickets easier.
+
+> Note: `api.createTicketWhich` gets an instance of a `TicketBuilder` which is configured and then passed as an argument to `api.addTicket`.
+
+```js
+const configuredTicket = api.createTicketWhich
+    .belongsToCourse('BI-PA1.21') // must be called
+    .hasStyle('laboratory') // must be called
+    .takesPlaceAtTime({
+        day: KosDayOfWeek.friday,
+        begin_hour: 16,
+        begin_minute: 15,
+        end_hour: 17,
+        end_minute: 45
+    }, KosWeekParity.all_weeks) // must be called
+    .takesPlaceAtLocation({
+        general: 'T9:',
+        specific: '350'
+    }) // optional
+    .hasParallelCode('20L') // optional
+    .isTaughtBy('XYZ'); // optional
+
+api.addTicket(configuredTicket);
+// returns ticket id
+'12345-abcde'
+```
+
+### #updateTicket(id, fn_update)
+
+Updates ticket details. Internally, the update function is called on the `course_event` property of the ticket object, **not the ticket object itself**!
+
+```js
+api.updateTicket('12345-abcde', event => {
+    event.time_of_week.day = KosDayOfWeek.thursday;
+    event.location.specific = '349';
+    event.teacher = 'John Doe';
+    ...
+});
+```
+
+### #removeTicket(id)
+
+Removes a ticket.
+
+```js
+api.removeTicket('12345-abcde');
+```
+
+## Missing features / limitations
+
+- Currently, the mod does not detect overlapping tickets and therefore does not adjust row heights. This should be fixed in the next release.
+- Elements in lists can only be selected by clicking on the radio input on the right side of each row. In the future, clicking anywhere on the row should select that row.
+- Currently, the course and the style of a ticket cannot be changed. This might be added in a future version.
