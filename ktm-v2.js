@@ -45,7 +45,6 @@ class Ticket {
         this.course_event = course_event
         this.root = document.querySelector('.schedule-grid')
         this.element = html_element || this.createDom()
-        this.added_by_user = html_element === undefined
     }
 
     static _createTicketDiv(course_event) {
@@ -307,6 +306,7 @@ class ModApi {
         console.log(`Parsing tickets already in the schedule...`)
         this._parseExistingElements()
         console.log(`Successfully parsed ${this._tickets.length} tickets.`)
+        this._refreshTickets(_ => true); // replace hyphens with en dashes
     }
 
     get createTicketWhich() {
@@ -572,11 +572,34 @@ class SingleVue {
 
 class Serializer {
     static deserialize(contents, api) {
-        // TODO
+        api._styles = contents.styles;
+        api._courses = contents.courses;
+        
+        api._removeTickets(_ => true);
+        api._tickets = contents.tickets.map(t => new Ticket(t.id, {
+            ...t.course_event,
+            style: api._styles.find(s => s.id === t.course_event.styleId),
+            styleId: undefined,
+            course: api._courses.find(c => c.official_name === t.course_event.courseId),
+            courseId: undefined
+        }));
     }
 
     static serialize(api) {
-        // TODO
+        return {
+            styles: api.getStyles(),
+            courses: api.getCourses(),
+            tickets: api.getTickets().map(t => ({
+                id: t.id,
+                course_event: {
+                    ...t.course_event,
+                    style: undefined,
+                    styleId: t.course_event.style.id,
+                    course: undefined,
+                    courseId: t.course_event.course.official_name
+                }
+            }))
+        };
     }
 }
 
@@ -663,7 +686,7 @@ const SelectableListComponent = {
 const downloadJson = (obj, filename) => {
     const element = document.createElement('a');
     element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(
-        JSON.stringify(obj)
+        JSON.stringify(obj, null, 2)
     ));
     element.setAttribute('download', filename);
   
@@ -712,7 +735,7 @@ const LoadJsonScreenComponent = {
             try {
                 const contents = JSON.parse(await this.$refs.fileInput.files[0].text());
                 Serializer.deserialize(contents, this.api);
-                $emit('goback');
+                this.$emit('goback');
             }
             catch(e) {
                 this.showError(e.message);

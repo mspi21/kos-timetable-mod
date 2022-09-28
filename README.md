@@ -31,9 +31,9 @@ let api = new ModApi(); // create new instance
 
 ## Persistence
 
-Note that all of the edits you make to the table are **rendered on the client-side only, purely visual and temporary!** The goal of this mod (for now) is merely to allow you to display or print your schedule in a way that looks nice.
+Note that all of the edits you make to the table are **rendered on the client-side only and purely visual**! The goal of this mod is merely to allow you to display or print your schedule in a way that looks nice.
 
-Features to export / load the modified schedule using JSON or enable storing the edits in `localStorage` might be implemented in the future.
+However, to allow you to save and come back to your edits at any time, there is a JSON import/export feature built into the mod. The exported JSON file contains information about the entire state of the schedule (styles, courses, tickets, relationships ticket->style and ticket->course) and importing one **overwrites everything** in the current state.
 
 ## Using the GUI
 
@@ -86,10 +86,6 @@ A ticket is a single element representing a class (lecture, seminar, ...) taken 
 ### Editing tickets
 
 Currently, the course and the style of a ticket cannot be changed. This might be added in a future version.
-
-## Save & Load JSON
-
-Not implemented yet.
 
 ## API Documentation
 
