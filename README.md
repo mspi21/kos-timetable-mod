@@ -39,9 +39,9 @@ let api = new ModApi(); // create new instance
 
 ## Persistence
 
-Note that all of the edits you make to the table are **rendered on the client-side only, purely visual and temporary!** The goal of this mod (for now) is merely to allow you to display or print your schedule in a way that looks nice.
+Note that all of the edits you make to the table are **rendered on the client-side only and purely visual**! The goal of this mod is merely to allow you to display or print your schedule in a way that looks nice.
 
-Features to export / load the modified schedule using JSON or enable storing the edits in `localStorage` might be implemented in the future.
+However, to allow you to save and come back to your edits at any time, there is a JSON import/export feature built into the mod. The exported JSON file contains information about the entire state of the schedule (styles, courses, tickets, relationships ticket->style and ticket->course) and importing one **overwrites everything** in the current state.
 
 ## Using the GUI
 
@@ -94,10 +94,6 @@ A ticket is a single element representing a class (lecture, seminar, ...) taken 
 ### Editing tickets
 
 Currently, the course and the style of a ticket cannot be changed. This might be added in a future version.
-
-## Save & Load JSON
-
-Not implemented yet.
 
 ## API Documentation
 
@@ -280,5 +276,4 @@ api.removeTicket('12345-abcde');
 
 - Currently, the mod does not detect overlapping tickets and therefore does not adjust row heights. This should be fixed in the next release.
 - Switching between semesters is not supported.
-- Elements in lists can only be selected by clicking on the radio input on the right side of each row. In the future, clicking anywhere on the row should select that row.
 - Currently, the course and the style of a ticket cannot be changed. This might be added in a future version.

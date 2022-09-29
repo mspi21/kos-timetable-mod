@@ -45,7 +45,6 @@ class Ticket {
         this.course_event = course_event
         this.root = document.querySelector('.schedule-grid')
         this.element = html_element || this.createDom()
-        this.added_by_user = html_element === undefined
     }
 
     static _createTicketDiv(course_event) {
@@ -307,6 +306,7 @@ class ModApi {
         console.log(`Parsing tickets already in the schedule...`)
         this._parseExistingElements()
         console.log(`Successfully parsed ${this._tickets.length} tickets.`)
+        this._refreshTickets(_ => true); // replace hyphens with en dashes
     }
 
     get createTicketWhich() {
@@ -570,6 +570,39 @@ class SingleVue {
     }
 }
 
+class Serializer {
+    static deserialize(contents, api) {
+        api._styles = contents.styles;
+        api._courses = contents.courses;
+        
+        api._removeTickets(_ => true);
+        api._tickets = contents.tickets.map(t => new Ticket(t.id, {
+            ...t.course_event,
+            style: api._styles.find(s => s.id === t.course_event.styleId),
+            styleId: undefined,
+            course: api._courses.find(c => c.official_name === t.course_event.courseId),
+            courseId: undefined
+        }));
+    }
+
+    static serialize(api) {
+        return {
+            styles: api.getStyles(),
+            courses: api.getCourses(),
+            tickets: api.getTickets().map(t => ({
+                id: t.id,
+                course_event: {
+                    ...t.course_event,
+                    style: undefined,
+                    styleId: t.course_event.style.id,
+                    course: undefined,
+                    courseId: t.course_event.course.official_name
+                }
+            }))
+        };
+    }
+}
+
 const ButtonComponent = {
     props: {
         text: {
@@ -602,24 +635,35 @@ const SelectableListComponent = {
         options: {
             type: Array,
             default: [],
-        }
+        },
+    },
+    data() {
+        return {
+            selectedOption: null,
+        };
     },
     computed: {
         header() {
             return Object.keys(this.options[0] || {}).filter(k => k !== 'id');
         },
     },
+    methods: {
+        setSelected(option) {
+            this.selectedOption = option;
+            this.$emit('select', option);
+        }
+    },
     template: `
         <table v-if="options && options.length" style="width: 100%;">
             <thead>
                 <tr>
-                    <th v-for="column in header" :id="column">{{ column }}</th>
+                    <th v-for="column in header" :key="column">{{ column }}</th>
                     <th>X</th>
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="option in options" :id="option.id">
-                    <td v-for="column in header" :id="column">
+                <tr v-for="option in options" :key="option.id" @click="setSelected(option.id)">
+                    <td v-for="column in header" :key="column">
                         <div class="mod-color-detail" v-if="typeof(option[column]) === 'object' && option[column].type === 'color'">
                             <div class="mod-color-box" :style="{ backgroundColor: option[column].value }"></div>
                             {{ option[column].value }}
@@ -627,7 +671,7 @@ const SelectableListComponent = {
                         <div v-else>{{ option[column] }}</div>
                     </td>
                     <td>
-                        <input type="radio" :name="id" :value="option.id" @input="$emit('select', option.id)"></input>
+                        <input type="radio" :name="id" :value="option.id" v-model="selectedOption" @input="setSelected(option.id)"></input>
                     </td>
                 </tr>
             </tbody>
@@ -639,13 +683,89 @@ const SelectableListComponent = {
     emits: ['select']
 };
 
+const downloadJson = (obj, filename) => {
+    const element = document.createElement('a');
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(
+        JSON.stringify(obj, null, 2)
+    ));
+    element.setAttribute('download', filename);
+  
+    element.style.display = 'none';
+    document.body.appendChild(element);
+  
+    element.click();
+  
+    document.body.removeChild(element);
+}
+
+const LoadJsonScreenComponent = {
+    inject: ['api'],
+    data() {
+        return {
+            error: '',
+            hasFile: false
+        };
+    },
+    template: `
+    <div class="mod-gui-screen mod-error" v-if="error">
+        <div>{{ error }}</div>
+        <v-button text="Dismiss" @click="dismissError" />
+    </div>
+    <div class="mod-gui-screen" v-else>
+        <div class="bld fs18">
+            Load JSON File
+        </div>
+        <div>
+            <input class="w100" type="file" accept="text/*,.json" ref="fileInput" @change="onChange" />
+        </div>
+        <div class="mod-button-group">
+            <v-button :disabled="!hasFile" text="Import Data" @click="loadJson"></v-button>
+            <v-button text="Go Back" @click="$emit('goback')"></v-button>
+        </div>
+    </div>
+    `,
+    methods: {
+        onChange() {
+            this.hasFile = this.$refs.fileInput.files.length > 0;
+        },
+        async loadJson() {
+            if(!this.hasFile)
+                return;
+            
+            try {
+                const contents = JSON.parse(await this.$refs.fileInput.files[0].text());
+                Serializer.deserialize(contents, this.api);
+                this.$emit('goback');
+            }
+            catch(e) {
+                this.showError(e.message);
+            }
+        },
+        showError(e) { this.error = e; },
+        dismissError() { this.error = ''; },
+    },
+    emits: ['goback'],
+    components: {
+        "v-button": ButtonComponent,
+    }
+};
+
 const MainScreenComponent = {
+    inject: ['api'],
     data() {
         return {
             CoursesScreenComponent,
             StylesScreenComponent,
-            TicketsScreenComponent
+            TicketsScreenComponent,
+            LoadJsonScreenComponent,
         };
+    },
+    methods: {
+        exportJson() {
+            const contents = Serializer.serialize(this.api);
+            const filename = 'kos-schedule.json';
+            downloadJson(contents, filename);
+        },
     },
     emits: ['setscreen'],
     template: `
@@ -661,10 +781,10 @@ const MainScreenComponent = {
         <div><v-button text="Styles" @click="$emit('setscreen', {screen: StylesScreenComponent})" /></div>
         <div><v-button text="Tickets" @click="$emit('setscreen', {screen: TicketsScreenComponent})" /></div>
         <div class="mod-button-group">
-            <v-button disabled text="Save to JSON" />
-            <v-button disabled text="Load JSON" />
+            <v-button text="Save to JSON" @click="exportJson" />
+            <v-button text="Load JSON" @click="$emit('setscreen', {screen: LoadJsonScreenComponent})" />
         </div>
-        <div>Author <a href="mailto:spinkmil@fit.cvut.cz">@spinkmil</a> (<a target="_blank" href="https://github.com/mspi21">github.com/mspi21</a>)</div>
+        <div>Author <a target="_blank" href="mailto:spinkmil@fit.cvut.cz">@spinkmil</a> (<a target="_blank" href="https://github.com/mspi21">github.com/mspi21</a>)</div>
     </div>
     `,
     components: {
