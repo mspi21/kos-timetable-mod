@@ -784,7 +784,7 @@ const MainScreenComponent = {
             <v-button text="Save to JSON" @click="exportJson" />
             <v-button text="Load JSON" @click="$emit('setscreen', {screen: LoadJsonScreenComponent})" />
         </div>
-        <div>Author <a href="mailto:spinkmil@fit.cvut.cz">@spinkmil</a> (<a target="_blank" href="https://github.com/mspi21">github.com/mspi21</a>)</div>
+        <div>Author <a target="_blank" href="mailto:spinkmil@fit.cvut.cz">@spinkmil</a> (<a target="_blank" href="https://github.com/mspi21">github.com/mspi21</a>)</div>
     </div>
     `,
     components: {
