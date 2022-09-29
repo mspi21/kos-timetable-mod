@@ -6,6 +6,14 @@ It creates a small GUI that allows you to **customise your schedule** in various
 
 Besides that, it also exposes an API class that allows you to do all of the mentioned things programatically from the browser console.
 
+<div style="display: flex; flex-direction: row;">
+<img height="130" alt="Screenshot 2022-09-28 at 5 33 12 PM" src="https://user-images.githubusercontent.com/78057064/192824213-7d6f0640-4736-4d10-94d8-e6bb5391dc8a.png">
+<img height="130" alt="Screenshot 2022-09-28 at 5 38 37 PM" src="https://user-images.githubusercontent.com/78057064/192824328-7fe2e0b1-a265-4515-a4fe-03f758e376b4.png">
+<img height="130" alt="Screenshot 2022-09-28 at 5 39 11 PM" src="https://user-images.githubusercontent.com/78057064/192824344-90bb727d-d6b5-4f47-bb07-ac1017732f8f.png">
+<img height="130" alt="Screenshot 2022-09-28 at 5 39 57 PM" src="https://user-images.githubusercontent.com/78057064/192824355-ba6eb47b-4cf6-42cf-ade6-feacf3556415.png">
+<img height="130" alt="Screenshot 2022-09-28 at 5 53 03 PM" src="https://user-images.githubusercontent.com/78057064/192826879-aac172c1-533c-467a-920f-c1151e225e56.png">
+</div>
+
 ## Basic Usage
 
 Because this is a client-side add-on, it can only be run manually by the user by entering code in the developer console. The console is available in most desktop browsers like Firefox and Chrome.
