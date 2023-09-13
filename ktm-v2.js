@@ -41,18 +41,18 @@ const kosTimeToString = ({ begin_hour, begin_minute, end_hour, end_minute }) => 
 };
 
 class Ticket {
-
-    constructor(id, course_event, html_element = undefined) {
+    constructor(id, course_event, offset_top, html_element = undefined) {
         this.id = id;
         this.course_event = course_event;
         this.root = document.querySelector('.schedule-grid');
         this.element = html_element || this.createDom();
+        this.offset_top = offset_top;
     }
 
-    static _createTicketDiv(course_event) {
+    static _createTicketDiv(course_event, offset_top) {
         const ret = document.createElement('div');
         ret.classList.add('event-base-wrapper');
-        ret.style.cssText = Ticket._createPositionCss(course_event.time_of_week, 0);
+        ret.style.cssText = Ticket._createPositionCss(course_event.time_of_week, offset_top);
         ret.appendChild(Ticket._createTicketWrapper(course_event));
         return ret;
     }
@@ -255,7 +255,7 @@ class Ticket {
     }
 
     createDom() {
-        const element = Ticket._createTicketDiv(this.course_event);
+        const element = Ticket._createTicketDiv(this.course_event, this.offset_top);
         this.root.appendChild(element);
         return element;
     }
@@ -331,8 +331,25 @@ class ModApi {
                 location: this._parseKosLocation(element)
             };
 
+            const _parseOffset = (margin_top) => {
+                if (!margin_top.startsWith("calc(")
+                    || !margin_top.endsWith("rem)"))
+                    throw new Error("Programmer Error: API getRowHeights() didn't return a valid array. Plz report");
+                switch (margin_top) {
+                    case "calc(0rem)":
+                        return 0;
+                    case "calc(5.25rem)":
+                        return 1;
+                    case "calc(10.5rem)":
+                        return 2;
+                    default:
+                        return Math.round((parseFloat(margin_top.substr("calc(".length)) || 0) / 5.25);
+                }
+            };
+
             // add Ticket to tickets
-            this._tickets.push(new Ticket(generateUUID(), course_event, element));
+            const offset_top = _parseOffset(element.style["margin-top"]);
+            this._tickets.push(new Ticket(generateUUID(), course_event, offset_top, element));
         });
     }
 
@@ -365,27 +382,27 @@ class ModApi {
         // Example value string:
         // "var(--low-row-height) var(--row-height) calc(var(--row-height) * 2) var(--row-height) calc(var(--row-height) * 2) var(--row-height) var(--low-row-height)"
 
-        if(!grid_template_rows.startsWith("var(--low-row-height) "))
+        if (!grid_template_rows.startsWith("var(--low-row-height) "))
             return null;
         grid_template_rows = grid_template_rows.substr("var(--low-row-height) ".length);
 
         const row_heights = [];
-        
-        for(let i = 1; i <= 5; i++) {
-            if(grid_template_rows.startsWith("var(--row-height) ")) {
+
+        for (let i = 1; i <= 5; i++) {
+            if (grid_template_rows.startsWith("var(--row-height) ")) {
                 grid_template_rows = grid_template_rows.substr("var(--row-height) ".length);
 
                 row_heights.push(1);
                 continue;
             }
-            if(grid_template_rows.startsWith("calc(var(--row-height) * ")) {
+            if (grid_template_rows.startsWith("calc(var(--row-height) * ")) {
                 grid_template_rows = grid_template_rows.substr("calc(var(--row-height) * ".length);
                 const x = parseInt(grid_template_rows);
                 grid_template_rows = grid_template_rows.substr(x.toString().length); // i hope...
-                
-                if(isNaN(x) || x < 1 || !grid_template_rows.startsWith(") "))
+
+                if (isNaN(x) || x < 1 || !grid_template_rows.startsWith(") "))
                     return null;
-                
+
                 grid_template_rows = grid_template_rows.substr(") ".length);
 
                 row_heights.push(x);
@@ -394,7 +411,7 @@ class ModApi {
             return null;
         }
 
-        if(grid_template_rows != "var(--low-row-height)")
+        if (grid_template_rows != "var(--low-row-height)")
             console.warn("grid_template_rows does not end with 'var(--low-row-height)'?!");
 
         return row_heights;
@@ -493,6 +510,7 @@ class ModApi {
 
         const uuid = ticket_builder.uuid;
         const event = ticket_builder.course_event;
+        const offset_top = ticket_builder.offset_top || 0;
 
         if (event.course === undefined ||
             event.style === undefined ||
@@ -500,7 +518,7 @@ class ModApi {
             event.week_parity === undefined)
             throw new Error(`Added ticket must have at least these fields: 'course', 'style', 'time_of_week', 'week_parity'.`);
 
-        this._tickets.push(new Ticket(uuid, event));
+        this._tickets.push(new Ticket(uuid, event, offset_top));
         this._refreshTickets(ticket => ticket.id === uuid);
         return uuid;
     }
@@ -665,13 +683,17 @@ class Serializer {
         api._courses = contents.courses;
 
         api._removeTickets(_ => true);
-        api._tickets = contents.tickets.map(t => new Ticket(t.id, {
-            ...t.course_event,
-            style: api._styles.find(s => s.id === t.course_event.styleId),
-            styleId: undefined,
-            course: api._courses.find(c => c.official_name === t.course_event.courseId),
-            courseId: undefined
-        }));
+        api._tickets = contents.tickets.map(t => new Ticket(
+            t.id,
+            {
+                ...t.course_event,
+                style: api._styles.find(s => s.id === t.course_event.styleId),
+                styleId: undefined,
+                course: api._courses.find(c => c.official_name === t.course_event.courseId),
+                courseId: undefined
+            },
+            t.offset_top || 0
+        ));
     }
 
     static serialize(api) {
@@ -1825,7 +1847,7 @@ let gui = await ModGui.create();
 
 /*
   TODO -- vertical offsets
-   - [ ] when parsing existing tickets
+   - [x] when parsing existing tickets
    - [ ] when creating tickets
    - [ ] when editing tickets
    - [ ] when exporting to JSON
