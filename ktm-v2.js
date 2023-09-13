@@ -510,7 +510,7 @@ class ModApi {
 
         const uuid = ticket_builder.uuid;
         const event = ticket_builder.course_event;
-        const offset_top = ticket_builder.offset_top || 0;
+        const offset_top = ticket_builder.offset || 0;
 
         if (event.course === undefined ||
             event.style === undefined ||
@@ -600,6 +600,7 @@ class TicketBuilder {
             weekParity: KosWeekParity.all_weeks
         };
         this._uuid = generateUUID();
+        this._offset = 0;
     }
 
     get uuid() {
@@ -662,6 +663,13 @@ class TicketBuilder {
         this._course_event.teacher = teacher;
         return this;
     }
+
+    isShiftedDownByNRows(n) {
+        if (typeof n != 'number' || n < 0)
+            throw new Error(`Incorrect parameter 'n'.`);
+        this._offset = n;
+        return this;
+    }
 }
 
 class SingleVue {
@@ -683,6 +691,7 @@ class Serializer {
         api._courses = contents.courses;
 
         api._removeTickets(_ => true);
+        api.setRowHeights(contents.row_heights);
         api._tickets = contents.tickets.map(t => new Ticket(
             t.id,
             {
@@ -694,10 +703,12 @@ class Serializer {
             },
             t.offset_top || 0
         ));
+        api._refreshTickets(_ => true);
     }
 
     static serialize(api) {
         return {
+            row_heights: api.getRowHeights(),
             styles: api.getStyles(),
             courses: api.getCourses(),
             tickets: api.getTickets().map(t => ({
@@ -708,7 +719,8 @@ class Serializer {
                     styleId: t.course_event.style.id,
                     course: undefined,
                     courseId: t.course_event.course.official_name
-                }
+                },
+                offset_top: t.offset_top
             }))
         };
     }
@@ -1850,6 +1862,6 @@ let gui = await ModGui.create();
    - [x] when parsing existing tickets
    - [ ] when creating tickets
    - [ ] when editing tickets
-   - [ ] when exporting to JSON
-   - [ ] when importing to JSON
+   - [x] when exporting to JSON
+   - [x] when importing to JSON
 */
