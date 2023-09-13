@@ -594,7 +594,7 @@ class TicketBuilder {
         this._course_event = {
             course: {},
             style: {},
-            location: {},
+            location: { general: '', specific: '' },
             time_of_week: {},
             teacher: '',
             weekParity: KosWeekParity.all_weeks
@@ -609,6 +609,10 @@ class TicketBuilder {
 
     get course_event() {
         return this._course_event;
+    }
+
+    get offset() {
+        return this._offset;
     }
 
     belongsToCourse(course_name) {
@@ -1421,7 +1425,8 @@ const AddTicketScreenComponent = {
             locationSpecific: '',
             parallelCode: '',
             teacherName: '',
-            weekParity: KosWeekParity.all_weeks
+            weekParity: KosWeekParity.all_weeks,
+            offset: 0
         };
     },
     methods: {
@@ -1452,6 +1457,8 @@ const AddTicketScreenComponent = {
                     ticket.hasParallelCode(this.parallelCode);
                 if (this.teacherName)
                     ticket.isTaughtBy(this.teacherName);
+                if (this.offset)
+                    ticket.isShiftedDownByNRows(this.offset);
 
                 this.api.addTicket(ticket);
                 this.$emit('goback');
@@ -1532,6 +1539,10 @@ const AddTicketScreenComponent = {
                 <tr>
                     <td>Teacher</td>
                     <td><input type="text" class="w100" v-model="teacherName"></input></td>
+                </tr>
+                <tr>
+                    <td>Row Offset</td>
+                    <td><input type="number" min="0" max="4" step="1" class="w100" v-model="offset"></input></td>
                 </tr>
             </tbody>
         </table>
@@ -1860,7 +1871,7 @@ let gui = await ModGui.create();
 /*
   TODO -- vertical offsets
    - [x] when parsing existing tickets
-   - [ ] when creating tickets
+   - [x] when creating tickets
    - [ ] when editing tickets
    - [x] when exporting to JSON
    - [x] when importing to JSON
