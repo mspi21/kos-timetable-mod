@@ -1,10 +1,12 @@
+const KOS_MOD_VERSION = "2.1";
+
 const generateUUID = () => {
     //#Source: https://bit.ly/2neWfJ2 
     return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(
         /[018]/g, c => (
             c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))
         ).toString(16)
-    )
+    );
 };
 
 const KosWeekParity = Object.freeze({
@@ -23,41 +25,41 @@ const KosDayOfWeek = Object.freeze({
 
 const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
-const kosTimeToString = ({ begin_hour, begin_minute, end_hour, end_minute}) => {
+const kosTimeToString = ({ begin_hour, begin_minute, end_hour, end_minute }) => {
     const format_minutes = (minutes) => {
-        if(!minutes) return '00'
+        if (!minutes) return '00';
         return (minutes < 10) ? ('0' + minutes) : ('' + minutes);
     }
-    
-    let res = ''
-    res += begin_hour + ':'
-    res += format_minutes(begin_minute)
-    res += '\u2013' // en dash
-    res += end_hour + ':'
-    res += format_minutes(end_minute)
-    return res
+
+    let res = '';
+    res += begin_hour + ':';
+    res += format_minutes(begin_minute);
+    res += '\u2013'; // en dash
+    res += end_hour + ':';
+    res += format_minutes(end_minute);
+    return res;
 };
 
 class Ticket {
 
     constructor(id, course_event, html_element = undefined) {
-        this.id = id
-        this.course_event = course_event
-        this.root = document.querySelector('.schedule-grid')
-        this.element = html_element || this.createDom()
+        this.id = id;
+        this.course_event = course_event;
+        this.root = document.querySelector('.schedule-grid');
+        this.element = html_element || this.createDom();
     }
 
     static _createTicketDiv(course_event) {
-        const ret = document.createElement('div')
-        ret.classList.add('event-base-wrapper')
-        ret.style.cssText = Ticket._createPositionCss(course_event.time_of_week, 0)
-        ret.appendChild(Ticket._createTicketWrapper(course_event))
-        return ret
+        const ret = document.createElement('div');
+        ret.classList.add('event-base-wrapper');
+        ret.style.cssText = Ticket._createPositionCss(course_event.time_of_week, 0);
+        ret.appendChild(Ticket._createTicketWrapper(course_event));
+        return ret;
     }
 
     static _createTicketWrapper(course_event) {
-        const ticket_wrapper = document.createElement('div')
-        ticket_wrapper.classList.add('ticket-wrapper', course_event.style.id)
+        const ticket_wrapper = document.createElement('div');
+        ticket_wrapper.classList.add('ticket-wrapper', course_event.style.id);
         ticket_wrapper.style.cssText = `
             height: 100%;
             padding-left: .125em;
@@ -66,51 +68,49 @@ class Ticket {
             font-size: .8rem;
             border-left: ${course_event.style.color_dark} solid .25rem;
             background-color: ${course_event.style.color_light};
-        `
+        `;
 
-        ticket_wrapper.appendChild(Ticket._createTicketHeader(course_event))
-        ticket_wrapper.appendChild(Ticket._createTicketBody(course_event))
-        if(course_event.location)
-            ticket_wrapper.appendChild(Ticket._createTicketFooter(course_event))
+        ticket_wrapper.appendChild(Ticket._createTicketHeader(course_event));
+        ticket_wrapper.appendChild(Ticket._createTicketBody(course_event));
+        if (course_event.location)
+            ticket_wrapper.appendChild(Ticket._createTicketFooter(course_event));
 
-        return ticket_wrapper
+        return ticket_wrapper;
     }
 
     static _createTicketHeader(course_event) {
-        const ticket_header = document.createElement('div')
-        ticket_header.classList.add('ticket-header')
+        const ticket_header = document.createElement('div');
+        ticket_header.classList.add('ticket-header');
         ticket_header.style.cssText = `
             display: flex;
             justify-content: space-between;
             white-space: nowrap;
             overflow: hidden;
             font-size: .8rem;
-        `
+        `;
 
-        const th_overflow_hidden = document.createElement('div')
-        th_overflow_hidden.classList.add('overflow-hidden')
-        th_overflow_hidden.setAttribute('data-testid', 'ticket-time')
+        const th_overflow_hidden = document.createElement('div');
+        th_overflow_hidden.classList.add('overflow-hidden');
+        th_overflow_hidden.setAttribute('data-testid', 'ticket-time');
         th_overflow_hidden.style.cssText = `
             white-space: nowrap;
             font-size: .8rem;
-        `
+        `;
         th_overflow_hidden.innerText = kosTimeToString(course_event.time_of_week);
-        ticket_header.appendChild(th_overflow_hidden)
+        ticket_header.appendChild(th_overflow_hidden);
 
-        if(course_event.parallel)
-        {
-            const th_dflex = document.createElement('div')
-            th_dflex.classList.add('d-flex')
+        if (course_event.parallel) {
+            const th_dflex = document.createElement('div');
+            th_dflex.classList.add('d-flex');
             th_dflex.style.cssText = `
                 white-space: nowrap;
                 font-size: .8rem;
-            `
-            ticket_header.appendChild(th_dflex)
+            `;
+            ticket_header.appendChild(th_dflex);
 
-            if(course_event.week_parity !== KosWeekParity.all_weeks)
-            {
-                const ticket_week = document.createElement('div')
-                ticket_week.classList.add('ticket-week')
+            if (course_event.week_parity !== KosWeekParity.all_weeks) {
+                const ticket_week = document.createElement('div');
+                ticket_week.classList.add('ticket-week');
                 ticket_week.style.cssText = `
                     background-color: #484b52;
                     color: #fff;
@@ -118,15 +118,15 @@ class Ticket {
                     text-transform: uppercase;
                     white-space: nowrap;
                     font-size: .8rem;
-                `
-                ticket_week.innerText = course_event.week_parity
-                th_dflex.appendChild(ticket_week)
+                `;
+                ticket_week.innerText = course_event.week_parity;
+                th_dflex.appendChild(ticket_week);
             }
 
-            const base_box = document.createElement('div')
-            base_box.classList.add('base-box', 'box', 'box-parallel')
-            course_event.style.id === 'lecture' && base_box.classList.add('P')
-            course_event.style.id === 'seminar' && base_box.classList.add('C')
+            const base_box = document.createElement('div');
+            base_box.classList.add('base-box', 'box', 'box-parallel');
+            course_event.style.id === 'lecture' && base_box.classList.add('P');
+            course_event.style.id === 'seminar' && base_box.classList.add('C');
             base_box.style.cssText = `
                 color: #fff;
                 font-size: .8rem;
@@ -137,10 +137,10 @@ class Ticket {
                 font-weight: 700;
                 white-space: nowrap;
                 background-color: ${course_event.style.color_dark};
-            `
-            th_dflex.appendChild(base_box)
+            `;
+            th_dflex.appendChild(base_box);
 
-            const outer_span = document.createElement('span')
+            const outer_span = document.createElement('span');
             outer_span.style.cssText = `
                 color: #fff;
                 font-size: .8rem;
@@ -148,37 +148,36 @@ class Ticket {
                 line-height: 1.4;
                 font-weight: 700;
                 white-space: nowrap;
-            `
-            base_box.appendChild(outer_span)
+            `;
+            base_box.appendChild(outer_span);
 
-            const inner_span = document.createElement('span')
+            const inner_span = document.createElement('span');
             inner_span.innerText = course_event.parallel;
-            outer_span.appendChild(inner_span)
+            outer_span.appendChild(inner_span);
         }
 
-        return ticket_header
+        return ticket_header;
     }
 
     static _createTicketBody(course_event) {
-        const ticket_body = document.createElement('div')
-        ticket_body.classList.add('ticket-body')
+        const ticket_body = document.createElement('div');
+        ticket_body.classList.add('ticket-body');
         ticket_body.style.cssText = `
             font-weight: 700;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
             font-size: .8rem;
-        `
+        `;
 
-        const ticket_display_name = document.createElement('div')
+        const ticket_display_name = document.createElement('div');
         ticket_display_name.innerText = course_event.course.display_name
-                                     || course_event.course.official_name
-        ticket_body.appendChild(ticket_display_name)
+            || course_event.course.official_name;
+        ticket_body.appendChild(ticket_display_name);
 
-        if(course_event.teacher)
-        {
-            const ticket_display_teacher = document.createElement('div')
-            ticket_display_teacher.classList.add('overflow-hidden')
+        if (course_event.teacher) {
+            const ticket_display_teacher = document.createElement('div');
+            ticket_display_teacher.classList.add('overflow-hidden');
             ticket_display_teacher.style.cssText = `
                 cursor: help;
                 text-decoration: underline dotted;
@@ -186,17 +185,17 @@ class Ticket {
                 white-space: nowrap;
                 font-size: .8rem;
                 font-weight: 400;
-            `
-            ticket_display_teacher.innerText = course_event.teacher
-            ticket_body.appendChild(ticket_display_teacher)
+            `;
+            ticket_display_teacher.innerText = course_event.teacher;
+            ticket_body.appendChild(ticket_display_teacher);
         }
 
-        return ticket_body
+        return ticket_body;
     }
 
     static _createTicketFooter(course_event) {
-        const ticket_footer = document.createElement('div')
-        ticket_footer.classList.add('ticket-footer')
+        const ticket_footer = document.createElement('div');
+        ticket_footer.classList.add('ticket-footer');
         ticket_footer.style.cssText = `
             margin-top: auto;
             display: flex;
@@ -205,43 +204,43 @@ class Ticket {
             text-overflow: ellipsis;
             white-space: nowrap;
             font-size: .8rem;
-        `
+        `;
 
-        const tf_overflow_hidden = document.createElement('div')
-        tf_overflow_hidden.classList.add('overflow-hidden')
+        const tf_overflow_hidden = document.createElement('div');
+        tf_overflow_hidden.classList.add('overflow-hidden');
         tf_overflow_hidden.style.cssText = `
             cursor: help;
             text-decoration: underline dotted;
             text-underline-position: under;
             white-space: nowrap;
             font-size: .8rem;
-        `
-        ticket_footer.appendChild(tf_overflow_hidden)
-        
-        const tf_span = document.createElement('span')
-        tf_span.innerHTML = `${course_event.location.general}<strong>${course_event.location.specific}</strong>`
-        tf_overflow_hidden.appendChild(tf_span)
+        `;
+        ticket_footer.appendChild(tf_overflow_hidden);
 
-        return ticket_footer
+        const tf_span = document.createElement('span');
+        tf_span.innerHTML = `${course_event.location.general}<strong>${course_event.location.specific}</strong>`;
+        tf_overflow_hidden.appendChild(tf_span);
+
+        return ticket_footer;
     }
 
     static _createPositionCss(time_of_week, offset_top) {
-        const row_heights = [1, 2, 3, 4, 5]
+        const row_heights = [1, 2, 3, 4, 5];
         const schedule_grid = document.querySelector('.schedule-grid');
-        if(!schedule_grid)
-            throw new Error(`Could not find element by selecting .schedule-grid`)
-        const row_base_height = Number.parseFloat(getComputedStyle(schedule_grid).getPropertyValue('--row-height'))
+        if (!schedule_grid)
+            throw new Error(`Could not find element by selecting .schedule-grid`);
+        const row_base_height = Number.parseFloat(getComputedStyle(schedule_grid).getPropertyValue('--row-height'));
 
-        const { begin_minute, begin_hour, end_minute, end_hour, day } = time_of_week
+        const { begin_minute, begin_hour, end_minute, end_hour, day } = time_of_week;
 
-        let starting_column = 2 + (begin_hour - 7)
-        let ending_column = 2 + (end_hour - 7)
-        if(end_minute) ending_column++
-        
-        const hundred_percent_in_minutes = (ending_column - starting_column) * 60
+        let starting_column = 2 + (begin_hour - 7);
+        let ending_column = 2 + (end_hour - 7);
+        if (end_minute) ending_column++;
 
-        const margin_left = begin_minute / hundred_percent_in_minutes * 100
-        const margin_right = (!end_minute) ? 0 : ((60 - end_minute) / hundred_percent_in_minutes * 100)
+        const hundred_percent_in_minutes = (ending_column - starting_column) * 60;
+
+        const margin_left = begin_minute / hundred_percent_in_minutes * 100;
+        const margin_right = (!end_minute) ? 0 : ((60 - end_minute) / hundred_percent_in_minutes * 100);
 
         return `
             grid-area:
@@ -252,23 +251,23 @@ class Ticket {
             margin-left: ${margin_left}%;
             margin-right: ${margin_right}%;
             margin-top: calc(${offset_top * row_base_height}rem);
-        `
+        `;
     }
 
     createDom() {
-        const element = Ticket._createTicketDiv(this.course_event)
-        this.root.appendChild(element)
-        return element
+        const element = Ticket._createTicketDiv(this.course_event);
+        this.root.appendChild(element);
+        return element;
     }
 
     removeFromDom() {
-        this.element.parentElement.removeChild(this.element)
-        delete this.element
+        this.element.parentElement.removeChild(this.element);
+        delete this.element;
     }
 
     refreshDom() {
-        this.removeFromDom()
-        this.element = this.createDom()
+        this.removeFromDom();
+        this.element = this.createDom();
     }
 }
 
@@ -295,17 +294,17 @@ class ModApi {
                 color_dark: '#C60C30',
                 color_light: '#f9e7ea'
             }
-        ]
-        this._courses = []
-        this._tickets = []
-        this._root = document.querySelector('.schedule-grid')
-        if(!this._root)
+        ];
+        this._courses = [];
+        this._tickets = [];
+        this._root = document.querySelector('.schedule-grid');
+        if (!this._root)
             throw new Error(`Could not find schedule root element ('.schedule-grid'). `
-            + `Make sure you run this script on a loaded schedule page at https://new.kos.cvut.cz/schedule`)
+                + `Make sure you run this script on a loaded schedule page at https://new.kos.cvut.cz/schedule`);
 
-        console.log(`Parsing tickets already in the schedule...`)
-        this._parseExistingElements()
-        console.log(`Successfully parsed ${this._tickets.length} tickets.`)
+        console.log(`Parsing tickets already in the schedule...`);
+        this._parseExistingElements();
+        console.log(`Successfully parsed ${this._tickets.length} tickets.`);
         this._refreshTickets(_ => true); // replace hyphens with en dashes
     }
 
@@ -314,13 +313,13 @@ class ModApi {
     }
 
     _parseExistingElements() {
-        const elements = document.querySelectorAll('.schedule-grid > .event-base-wrapper')
+        const elements = document.querySelectorAll('.schedule-grid > .event-base-wrapper');
         elements.forEach(element => {
             // parse Course
-            const display_name = element.querySelector('.ticket-body > div')?.innerHTML
+            const display_name = element.querySelector('.ticket-body > div')?.innerHTML;
             let course_ref = this._courses.find(c => c.official_name == display_name)
-                          || this._courses[this._courses.push({ official_name: display_name }) - 1]
-            
+                || this._courses[this._courses.push({ official_name: display_name }) - 1];
+
             // parse CourseEvent
             const course_event = {
                 course: course_ref,
@@ -330,36 +329,75 @@ class ModApi {
                 parallel: element.querySelector('.d-flex > .base-box.box.box-parallel > span > span')?.innerHTML,
                 teacher: element.querySelector('.ticket-body > .overflow-hidden')?.innerHTML,
                 location: this._parseKosLocation(element)
-            }
+            };
 
             // add Ticket to tickets
-            this._tickets.push(new Ticket(generateUUID(), course_event, element))
+            this._tickets.push(new Ticket(generateUUID(), course_event, element));
         });
     }
 
     _parseKosTime(element) {
-        const time_string = element.querySelector('.ticket-header > .overflow-hidden').innerHTML
-        const day = parseInt(element.style.gridArea) - 2
-        
+        const time_string = element.querySelector('.ticket-header > .overflow-hidden').innerHTML;
+        const day = parseInt(element.style.gridArea) - 2;
+
         return {
             begin_hour: Number(/^[0-2]?[0-9]/.exec(time_string)),
             begin_minute: Number(/^[0-2]?[0-9]:([0-5][0-9])/.exec(time_string)[1]),
             end_hour: Number(/^[0-2]?[0-9]:[0-5][0-9] - ([0-2]?[0-9])/.exec(time_string)[1]),
             end_minute: Number(/^[0-2]?[0-9]:[0-5][0-9] - [0-2]?[0-9]:([0-5][0-9])/.exec(time_string)[1]),
             day
-        }
+        };
     }
 
     _parseKosLocation(element) {
-        const location_string = element.querySelector('.ticket-footer > .overflow-hidden > span')?.innerHTML
-        if(!location_string) return undefined
+        const location_string = element.querySelector('.ticket-footer > .overflow-hidden > span')?.innerHTML;
+        if (!location_string) return undefined;
 
         // assume that location_string has format "general<strong>specific</strong>"
-        const parts = location_string.split('<strong>')
+        const parts = location_string.split('<strong>');
         return {
             general: parts[0],
             specific: parts[1].replace('</strong>', '')
+        };
+    }
+
+    _parseRowHeights(grid_template_rows) {
+        // Example value string:
+        // "var(--low-row-height) var(--row-height) calc(var(--row-height) * 2) var(--row-height) calc(var(--row-height) * 2) var(--row-height) var(--low-row-height)"
+
+        if(!grid_template_rows.startsWith("var(--low-row-height) "))
+            return null;
+        grid_template_rows = grid_template_rows.substr("var(--low-row-height) ".length);
+
+        const row_heights = [];
+        
+        for(let i = 1; i <= 5; i++) {
+            if(grid_template_rows.startsWith("var(--row-height) ")) {
+                grid_template_rows = grid_template_rows.substr("var(--row-height) ".length);
+
+                row_heights.push(1);
+                continue;
+            }
+            if(grid_template_rows.startsWith("calc(var(--row-height) * ")) {
+                grid_template_rows = grid_template_rows.substr("calc(var(--row-height) * ".length);
+                const x = parseInt(grid_template_rows);
+                grid_template_rows = grid_template_rows.substr(x.toString().length); // i hope...
+                
+                if(isNaN(x) || x < 1 || !grid_template_rows.startsWith(") "))
+                    return null;
+                
+                grid_template_rows = grid_template_rows.substr(") ".length);
+
+                row_heights.push(x);
+                continue;
+            }
+            return null;
         }
+
+        if(grid_template_rows != "var(--low-row-height)")
+            console.warn("grid_template_rows does not end with 'var(--low-row-height)'?!");
+
+        return row_heights;
     }
 
     _refreshTickets(predicate) {
@@ -368,11 +406,11 @@ class ModApi {
 
     _removeTickets(predicate) {
         this._tickets.filter(predicate).forEach(ticket => {
-            ticket.removeFromDom()
+            ticket.removeFromDom();
         })
 
-        const not = (predicate) => ((thing) => !predicate(thing))
-        this._tickets = this._tickets.filter(not(predicate))
+        const not = (predicate) => ((thing) => !predicate(thing));
+        this._tickets = this._tickets.filter(not(predicate));
     }
 
     getStyles() {
@@ -380,29 +418,29 @@ class ModApi {
     }
 
     addStyle(class_name, color_dark, color_light) {
-        if(this._styles.find(s => s.id === class_name))
+        if (this._styles.find(s => s.id === class_name))
             throw new Error(`There is already a style with the name '${class_name}. `
-                + `Please choose another name or use the updateStyle method.'`)
-        if(!/^[a-zA-Z_-][a-zA-Z0-9_-]*$/.test(class_name))
+                + `Please choose another name or use the updateStyle method.'`);
+        if (!/^[a-zA-Z_-][a-zA-Z0-9_-]*$/.test(class_name))
             throw new Error(`Style names have to follow css class naming conventions:\n`
                 + `A valid name should start with an underscore (_), a hyphen (-) or a letter `
-                + `(a-z)/(A-Z) which is followed by any numbers, hyphens, underscores, letters.`)
-        this._styles.push({id: class_name, color_dark, color_light })
-        this._refreshTickets(ticket => ticket.course_event.style.id === class_name)
+                + `(a-z)/(A-Z) which is followed by any numbers, hyphens, underscores, letters.`);
+        this._styles.push({ id: class_name, color_dark, color_light });
+        this._refreshTickets(ticket => ticket.course_event.style.id === class_name);
     }
 
     updateStyle(class_name, fn_update) {
-        const style = this._styles.find(s => s.id === class_name)
-        if(!style)
-            throw new Error(`Could not find a style with name '${class_name}.'`)
-        fn_update(style)
-        this._refreshTickets(ticket => ticket.course_event.style.id === class_name)
+        const style = this._styles.find(s => s.id === class_name);
+        if (!style)
+            throw new Error(`Could not find a style with name '${class_name}.'`);
+        fn_update(style);
+        this._refreshTickets(ticket => ticket.course_event.style.id === class_name);
     }
 
     removeStyle(class_name) {
         // only allow removing a style if no tickets are using it
         this._tickets.forEach(t => {
-            if(t.course_event.style.id === class_name)
+            if (t.course_event.style.id === class_name)
                 throw new Error(
                     `Style ${class_name} is used by ticket (Course ${t.course_event.course.official_name}, ` +
                     `${DAY_NAMES[t.course_event.time_of_week.day]} ${kosTimeToString(t.course_event.time_of_week)}).\n` +
@@ -410,80 +448,131 @@ class ModApi {
                 );
         });
 
-        this._styles = this._styles.filter(s => s.id !== class_name)
-        this._refreshTickets(ticket => ticket.course_event.style.id === class_name)
+        this._styles = this._styles.filter(s => s.id !== class_name);
+        this._refreshTickets(ticket => ticket.course_event.style.id === class_name);
     }
 
     getCourses() {
-        return this._courses
+        return this._courses;
     }
 
     addCourse(official_name, display_name = undefined) {
-        if(this._courses.some(c => c.official_name === official_name))
+        if (this._courses.some(c => c.official_name === official_name))
             throw new Error(`There is already a course with the official name '${official_name}.`
-                + `Please choose another name or remove the other course using the removeCourse method.'`)
-        this._courses.push({ official_name: Object.freeze(official_name), display_name })
+                + `Please choose another name or remove the other course using the removeCourse method.'`);
+        this._courses.push({ official_name: Object.freeze(official_name), display_name });
     }
 
     updateCourse(official_name, fn_update) {
-        const course = this._courses.find(c => c.official_name === official_name)
-        if(!course)
-            throw new Error(`Could not find a course with official name '${official_name}.'`)
-        fn_update(course)
-        this._refreshTickets(ticket => ticket.course_event.course.official_name === official_name)
+        const course = this._courses.find(c => c.official_name === official_name);
+        if (!course)
+            throw new Error(`Could not find a course with official name '${official_name}.'`);
+        fn_update(course);
+        this._refreshTickets(ticket => ticket.course_event.course.official_name === official_name);
     }
 
     removeCourse(official_name) {
-        const course = this._courses.find(c => c.official_name === official_name)
-        if(!course)
-            throw new Error(`Could not find a course with official name '${official_name}.'`)
+        const course = this._courses.find(c => c.official_name === official_name);
+        if (!course)
+            throw new Error(`Could not find a course with official name '${official_name}.'`);
         this._courses = this._courses.filter(c => c.official_name !== official_name);
 
         // maybetodo check if any tickets exist (make ux more friendly)?
         // for now, just delete all tickets associated with course
-        this._removeTickets(ticket => ticket.course_event.course.official_name === official_name)
+        this._removeTickets(ticket => ticket.course_event.course.official_name === official_name);
     }
 
     getTickets() {
-        return this._tickets
+        return this._tickets;
     }
 
     // course argument refers to official_name (id) of course
     addTicket(ticket_builder) {
-        if(!(ticket_builder instanceof TicketBuilder))
-            throw new Error(`Wrong type for argument 'ticket_builder: must be an instance of TicketBuilder.'`)
-        
-        const uuid = ticket_builder.uuid
-        const event = ticket_builder.course_event
+        if (!(ticket_builder instanceof TicketBuilder))
+            throw new Error(`Wrong type for argument 'ticket_builder: must be an instance of TicketBuilder.'`);
 
-        if(event.course === undefined ||
+        const uuid = ticket_builder.uuid;
+        const event = ticket_builder.course_event;
+
+        if (event.course === undefined ||
             event.style === undefined ||
             event.time_of_week === undefined ||
             event.week_parity === undefined)
-            throw new Error(`Added ticket must have at least these fields: 'course', 'style', 'time_of_week', 'week_parity'.`)
+            throw new Error(`Added ticket must have at least these fields: 'course', 'style', 'time_of_week', 'week_parity'.`);
 
-        this._tickets.push(new Ticket(uuid, event))
-        this._refreshTickets(ticket => ticket.id === uuid)
-        return uuid
+        this._tickets.push(new Ticket(uuid, event));
+        this._refreshTickets(ticket => ticket.id === uuid);
+        return uuid;
     }
 
     updateTicket(id, fn_update) {
-        const ticket = this._tickets.find(ticket => ticket.id === id)
-        if(!ticket)
-            throw new Error(`No ticket with id '${id}'`)
-        fn_update(ticket.course_event)
-        this._refreshTickets(ticket => ticket.id === id)
+        const ticket = this._tickets.find(ticket => ticket.id === id);
+        if (!ticket)
+            throw new Error(`No ticket with id '${id}'`);
+        fn_update(ticket.course_event);
+        this._refreshTickets(ticket => ticket.id === id);
     }
 
     removeTicket(id) {
-        this._removeTickets(ticket => ticket.id === id)
+        this._removeTickets(ticket => ticket.id === id);
+    }
+
+    getRowHeights() {
+        const grid = document.querySelector('.schedule-grid');
+        if (!grid)
+            return console.error(".schedule-grid not found!");
+        const grid_rows = grid.style["grid-template-rows"];
+
+        return this._parseRowHeights(grid_rows);
+    }
+
+    setRowHeights(heights) {
+        if (!Array.isArray(heights) || heights.length != 5)
+            return false;
+        for (let height of heights) if (typeof (height) != typeof (1) || isNaN(height) || height < 1)
+            return false;
+
+        const grid = document.querySelector('.schedule-grid');
+        if (!grid) {
+            console.error(".schedule-grid not found!");
+            return false;
+        }
+
+        // modify grid used to align the classes
+        let i = 0;
+        grid.style = "grid-template-rows:"
+            + " var(--low-row-height)" // this is the header
+            + ` calc(var(--row-height) * ${heights[i++]})`
+            + ` calc(var(--row-height) * ${heights[i++]})`
+            + ` calc(var(--row-height) * ${heights[i++]})`
+            + ` calc(var(--row-height) * ${heights[i++]})`
+            + ` calc(var(--row-height) * ${heights[i++]})`
+            + " var(--low-row-height);" // this is the last (empty) row
+            + " --rows-count: 7; --columns-count: 17; --row-height: 5.25rem; --column-width: 5rem;";
+
+        // resize the day markings on the left
+        const dayLabels = document.querySelector('.schedule-grid > .schedule-days');
+        i = 0;
+        dayLabels.style = "grid-template-rows:"
+            + ` calc(var(--row-height) * ${heights[i++]})`
+            + ` calc(var(--row-height) * ${heights[i++]})`
+            + ` calc(var(--row-height) * ${heights[i++]})`
+            + ` calc(var(--row-height) * ${heights[i++]})`
+            + ` calc(var(--row-height) * ${heights[i++]})`;
+
+        // resize the visible grid
+        for (const gridColumn of document.querySelector('.schedule-events-grid').children)
+            for (i = 0; i < 5; i++)
+                gridColumn.children[i].style = `height: calc(var(--row-height) * ${heights[i]});`;
+
+        return true;
     }
 }
 
 class TicketBuilder {
     constructor(courses, styles) {
-        this._courses = courses
-        this._styles = styles
+        this._courses = courses;
+        this._styles = styles;
         this._course_event = {
             course: {},
             style: {},
@@ -491,79 +580,79 @@ class TicketBuilder {
             time_of_week: {},
             teacher: '',
             weekParity: KosWeekParity.all_weeks
-        }
-        this._uuid = generateUUID()
+        };
+        this._uuid = generateUUID();
     }
 
     get uuid() {
-        return this._uuid
+        return this._uuid;
     }
 
     get course_event() {
-        return this._course_event
+        return this._course_event;
     }
 
     belongsToCourse(course_name) {
-        const course_ref = this._courses.find(c => c.official_name === course_name)
-        if(!course_ref)
-            throw new Error(`Could not find a course with official name '${course_name}.'`)
-        this._course_event.course = course_ref
-        return this
+        const course_ref = this._courses.find(c => c.official_name === course_name);
+        if (!course_ref)
+            throw new Error(`Could not find a course with official name '${course_name}.'`);
+        this._course_event.course = course_ref;
+        return this;
     }
 
     hasStyle(style) {
-        const style_ref = this._styles.find(s => s.id === style)
-        if(!style_ref)
+        const style_ref = this._styles.find(s => s.id === style);
+        if (!style_ref)
             throw new Error(`Could not find a style with classname '${style}.'`)
-        this._course_event.style = style_ref
-        return this
+        this._course_event.style = style_ref;
+        return this;
     }
 
     takesPlaceAtTime(time_of_week, week_parity = KosWeekParity.all_weeks) {
-        if(typeof(time_of_week) !== 'object'
-        || time_of_week.day === undefined
-        || time_of_week.begin_hour === undefined
-        || time_of_week.begin_minute === undefined
-        || time_of_week.end_hour === undefined
-        || time_of_week.end_minute === undefined)
-            throw new Error(`Incorrect type for argument 'time_of_week'.`)
-        
-        if(!Object.values(KosWeekParity).includes(week_parity))
-            throw new Error(`Argument 'week_parity' must be member of KosWeekParity.`)
-        
-        this._course_event.time_of_week = time_of_week
-        this._course_event.week_parity = week_parity
-        return this
+        if (typeof (time_of_week) !== 'object'
+            || time_of_week.day === undefined
+            || time_of_week.begin_hour === undefined
+            || time_of_week.begin_minute === undefined
+            || time_of_week.end_hour === undefined
+            || time_of_week.end_minute === undefined)
+            throw new Error(`Incorrect type for argument 'time_of_week'.`);
+
+        if (!Object.values(KosWeekParity).includes(week_parity))
+            throw new Error(`Argument 'week_parity' must be member of KosWeekParity.`);
+
+        this._course_event.time_of_week = time_of_week;
+        this._course_event.week_parity = week_parity;
+        return this;
     }
 
     takesPlaceAtLocation(place) {
-        if(typeof(place) !== 'object'
-        || place.general === undefined
-        || place.specific === undefined)
-            throw new Error(`Incorrect type for argument 'place'.`)
-        
-        this._course_event.location = place
-        return this
+        if (typeof (place) !== 'object'
+            || place.general === undefined
+            || place.specific === undefined)
+            throw new Error(`Incorrect type for argument 'place'.`);
+
+        this._course_event.location = place;
+        return this;
     }
 
     hasParallelCode(code) {
-        this._course_event.parallel = code
-        return this
+        this._course_event.parallel = code;
+        return this;
     }
 
     isTaughtBy(teacher) {
-        this._course_event.teacher = teacher
-        return this
+        this._course_event.teacher = teacher;
+        return this;
     }
 }
 
 class SingleVue {
     static async getInstance() {
-        if(!SingleVue.instance)
+        if (!SingleVue.instance)
             SingleVue.instance = await new Promise((resolve, _) => {
                 const scriptEl = document.createElement('script');
-                scriptEl.setAttribute('src', 'https://unpkg.com/vue@3/dist/vue.global.prod.js');
-                scriptEl.addEventListener('load', function() { resolve(Vue) });
+                scriptEl.setAttribute('src', 'https://unpkg.com/vue@3.2.0/dist/vue.global.prod.js');
+                scriptEl.addEventListener('load', function () { resolve(Vue) });
                 document.head.appendChild(scriptEl);
             });
         return SingleVue.instance;
@@ -574,7 +663,7 @@ class Serializer {
     static deserialize(contents, api) {
         api._styles = contents.styles;
         api._courses = contents.courses;
-        
+
         api._removeTickets(_ => true);
         api._tickets = contents.tickets.map(t => new Ticket(t.id, {
             ...t.course_event,
@@ -689,12 +778,12 @@ const downloadJson = (obj, filename) => {
         JSON.stringify(obj, null, 2)
     ));
     element.setAttribute('download', filename);
-  
+
     element.style.display = 'none';
     document.body.appendChild(element);
-  
+
     element.click();
-  
+
     document.body.removeChild(element);
 }
 
@@ -729,20 +818,73 @@ const LoadJsonScreenComponent = {
             this.hasFile = this.$refs.fileInput.files.length > 0;
         },
         async loadJson() {
-            if(!this.hasFile)
+            if (!this.hasFile)
                 return;
-            
+
             try {
                 const contents = JSON.parse(await this.$refs.fileInput.files[0].text());
                 Serializer.deserialize(contents, this.api);
                 this.$emit('goback');
             }
-            catch(e) {
+            catch (e) {
                 this.showError(e.message);
             }
         },
         showError(e) { this.error = e; },
         dismissError() { this.error = ''; },
+    },
+    emits: ['goback'],
+    components: {
+        "v-button": ButtonComponent,
+    }
+};
+
+const RowHeightsScreenComponent = {
+    inject: ['api'],
+    data() {
+        return {
+            madeChanges: false
+        };
+    },
+    template: `
+    <div class="mod-gui-screen" v-else>
+        <div class="bld fs18">
+            Manipulate row heights
+        </div>
+        <div>
+            <input class="w100" type="range" min="1" max="5" step="1" ref="r1input" @change="onChange" />
+            <input class="w100" type="range" min="1" max="5" step="1" ref="r2input" @change="onChange" />
+            <input class="w100" type="range" min="1" max="5" step="1" ref="r3input" @change="onChange" />
+            <input class="w100" type="range" min="1" max="5" step="1" ref="r4input" @change="onChange" />
+            <input class="w100" type="range" min="1" max="5" step="1" ref="r5input" @change="onChange" />
+        </div>
+        <div class="mod-button-group">
+            <v-button :disabled="!madeChanges" text="Apply Changes" @click="applyHeights"></v-button>
+            <v-button text="Go Back" @click="$emit('goback')"></v-button>
+        </div>
+    </div>
+    `,
+    mounted() {
+        const row_heights = this.api.getRowHeights();
+        if (!Array.isArray(row_heights) || row_heights.length !== 5)
+            return console.error("Programmer Error: API getRowHeights() didn't return a valid array. Plz report");
+        for (let i = 1; i <= 5; i++)
+            this.$refs[`r${i}input`].value = row_heights[i - 1];
+    },
+    methods: {
+        onChange() {
+            this.madeChanges = true;
+        },
+        applyHeights() {
+            this.api.setRowHeights([
+                parseInt(this.$refs["r1input"].value),
+                parseInt(this.$refs["r2input"].value),
+                parseInt(this.$refs["r3input"].value),
+                parseInt(this.$refs["r4input"].value),
+                parseInt(this.$refs["r5input"].value)
+            ]);
+            this.$emit('goback');
+        }
     },
     emits: ['goback'],
     components: {
@@ -758,6 +900,7 @@ const MainScreenComponent = {
             StylesScreenComponent,
             TicketsScreenComponent,
             LoadJsonScreenComponent,
+            RowHeightsScreenComponent
         };
     },
     methods: {
@@ -771,7 +914,7 @@ const MainScreenComponent = {
     template: `
     <div class="mod-gui-screen">
         <div class="bld fs18">
-            Kos Schedule Mod v2
+            Kos Schedule Mod v${KOS_MOD_VERSION}
         </div>
         <div>
             Use below options to add, edit or remove courses, styles and tickets.
@@ -780,6 +923,7 @@ const MainScreenComponent = {
         <div><v-button text="Courses" @click="$emit('setscreen', {screen: CoursesScreenComponent})" /></div>
         <div><v-button text="Styles" @click="$emit('setscreen', {screen: StylesScreenComponent})" /></div>
         <div><v-button text="Tickets" @click="$emit('setscreen', {screen: TicketsScreenComponent})" /></div>
+        <div><v-button text="Row Heights" @click="$emit('setscreen', {screen: RowHeightsScreenComponent})" /></div>
         <div class="mod-button-group">
             <v-button text="Save to JSON" @click="exportJson" />
             <v-button text="Load JSON" @click="$emit('setscreen', {screen: LoadJsonScreenComponent})" />
@@ -865,7 +1009,7 @@ const AddCourseScreenComponent = {
     },
     methods: {
         save() {
-            if(this.api.getCourses().some(c => c.official_name === this.courseId)) {
+            if (this.api.getCourses().some(c => c.official_name === this.courseId)) {
                 this.showError(`There is already a course with code '${this.courseId}'.`);
                 return;
             }
@@ -991,7 +1135,7 @@ const StylesScreenComponent = {
                 this.selectedStyleId = null;
                 this.refreshStyles();
             }
-            catch(e) {
+            catch (e) {
                 this.showError(e);
             }
         },
@@ -1053,7 +1197,7 @@ const AddStyleScreenComponent = {
     },
     methods: {
         save() {
-            if(this.api.getStyles().some(s => s.id === this.styleId)) {
+            if (this.api.getStyles().some(s => s.id === this.styleId)) {
                 this.showError(`There is already a style with id '${this.styleId}'.`);
                 return;
             }
@@ -1248,10 +1392,10 @@ const AddTicketScreenComponent = {
     },
     methods: {
         checkRequiredFields() {
-            if(!this.courseId) {
+            if (!this.courseId) {
                 throw new Error('You must select a course.');
             }
-            if(!this.styleId) {
+            if (!this.styleId) {
                 throw new Error('You must select a style.');
             }
         },
@@ -1268,17 +1412,17 @@ const AddTicketScreenComponent = {
                         end_minute: this.endMinute,
                     }, this.weekParity || KosWeekParity.all_weeks)
                     .hasStyle(this.styleId);
-                if(this.locationGeneral || this.locationSpecific)
-                    ticket.takesPlaceAtLocation({general: this.locationGeneral, specific: this.locationSpecific});
-                if(this.parallelCode)
+                if (this.locationGeneral || this.locationSpecific)
+                    ticket.takesPlaceAtLocation({ general: this.locationGeneral, specific: this.locationSpecific });
+                if (this.parallelCode)
                     ticket.hasParallelCode(this.parallelCode);
-                if(this.teacherName)
+                if (this.teacherName)
                     ticket.isTaughtBy(this.teacherName);
 
                 this.api.addTicket(ticket);
                 this.$emit('goback');
             }
-            catch(e) {
+            catch (e) {
                 this.showError(e.message);
             }
         },
@@ -1408,17 +1552,17 @@ const EditTicketScreenComponent = {
                     };
                     course_event.week_parity = this.weekParity;
 
-                    if(this.locationGeneral || this.locationSpecific)
-                        course_event.location = {general: this.locationGeneral, specific: this.locationSpecific};
-                    if(this.parallelCode)
+                    if (this.locationGeneral || this.locationSpecific)
+                        course_event.location = { general: this.locationGeneral, specific: this.locationSpecific };
+                    if (this.parallelCode)
                         course_event.parallel = this.parallelCode;
-                    if(this.teacherName)
+                    if (this.teacherName)
                         course_event.teacher = this.teacherName;
                 };
                 this.api.updateTicket(this.ticketId, updateFn);
                 this.$emit('goback');
             }
-            catch(e) {
+            catch (e) {
                 this.showError(e.message);
             }
         },
@@ -1445,7 +1589,7 @@ const EditTicketScreenComponent = {
         this.endHour = end_hour;
         this.endMinute = end_minute;
         this.weekParity = editedTicket.week_parity;
-    
+
         this.locationGeneral = editedTicket.location.general;
         this.locationSpecific = editedTicket.location.specific;
         this.parallelCode = editedTicket.parallel;
@@ -1529,12 +1673,12 @@ const ModApp = {
         return {
             screen: MainScreenComponent,
             screenProps: {},
-            screenHistory: [{screen: MainScreenComponent, props: {}}],
+            screenHistory: [{ screen: MainScreenComponent, props: {} }],
         };
     },
     methods: {
         setScreen(component) {
-            if(component) {
+            if (component) {
                 this.screen = component.screen;
                 this.screenProps = component.props || {};
                 this.screenHistory.push({
@@ -1544,9 +1688,9 @@ const ModApp = {
             }
         },
         setPreviousScreen() {
-            if(this.screenHistory.length > 1) {
+            if (this.screenHistory.length > 1) {
                 this.screenHistory = this.screenHistory.slice(0, -1);
-                const {screen, props} = this.screenHistory[
+                const { screen, props } = this.screenHistory[
                     this.screenHistory.length - 1
                 ];
                 this.screen = screen;
@@ -1634,7 +1778,7 @@ const ModAppStyles = `
 `;
 
 class ModGui {
-    constructor() {}
+    constructor() { }
 
     /* cannot await asynchronous calls in constructor */
     static async create() {
@@ -1678,3 +1822,12 @@ class ModGui {
 }
 
 let gui = await ModGui.create();
+
+/*
+  TODO -- vertical offsets
+   - [ ] when parsing existing tickets
+   - [ ] when creating tickets
+   - [ ] when editing tickets
+   - [ ] when exporting to JSON
+   - [ ] when importing to JSON
+*/
