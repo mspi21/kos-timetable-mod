@@ -531,6 +531,14 @@ class ModApi {
         this._refreshTickets(ticket => ticket.id === id);
     }
 
+    updateTicketOffset(id, offset) {
+        const ticket = this._tickets.find(ticket => ticket.id === id);
+        if (!ticket)
+            throw new Error(`No ticket with id '${id}'`);
+        ticket.offset_top = offset;
+        this._refreshTickets(ticket => ticket.id === id);
+    }
+
     removeTicket(id) {
         this._removeTickets(ticket => ticket.id === id);
     }
@@ -1581,7 +1589,8 @@ const EditTicketScreenComponent = {
             locationSpecific: '',
             parallelCode: '',
             teacherName: '',
-            weekParity: KosWeekParity.all_weeks
+            weekParity: KosWeekParity.all_weeks,
+            offset: 0
         };
     },
     methods: {
@@ -1605,6 +1614,7 @@ const EditTicketScreenComponent = {
                         course_event.teacher = this.teacherName;
                 };
                 this.api.updateTicket(this.ticketId, updateFn);
+                this.api.updateTicketOffset(this.ticketId, this.offset);
                 this.$emit('goback');
             }
             catch (e) {
@@ -1625,20 +1635,23 @@ const EditTicketScreenComponent = {
         }
     },
     mounted() {
-        const editedTicket = this.api.getTickets().find(t => t.id === this.ticketId).course_event;
+        const editedTicket = this.api.getTickets().find(t => t.id === this.ticketId);
+        const editedEvent = editedTicket.course_event;
 
-        const { day, begin_hour, begin_minute, end_hour, end_minute } = editedTicket.time_of_week;
+        const { day, begin_hour, begin_minute, end_hour, end_minute } = editedEvent.time_of_week;
         this.dayOfWeek = day;
         this.beginHour = begin_hour;
         this.beginMinute = begin_minute;
         this.endHour = end_hour;
         this.endMinute = end_minute;
-        this.weekParity = editedTicket.week_parity;
+        this.weekParity = editedEvent.week_parity;
 
-        this.locationGeneral = editedTicket.location.general;
-        this.locationSpecific = editedTicket.location.specific;
-        this.parallelCode = editedTicket.parallel;
-        this.teacherName = editedTicket.teacher;
+        this.locationGeneral = editedEvent.location.general;
+        this.locationSpecific = editedEvent.location.specific;
+        this.parallelCode = editedEvent.parallel;
+        this.teacherName = editedEvent.teacher;
+
+        this.offset = editedTicket.offset_top;
     },
     template: `
     <div class="mod-gui-screen mod-error" v-if="error">
@@ -1687,6 +1700,10 @@ const EditTicketScreenComponent = {
                 <tr>
                     <td>Teacher</td>
                     <td><input type="text" class="w100" v-model="teacherName"></input></td>
+                </tr>
+                <tr>
+                    <td>Row Offset</td>
+                    <td><input type="number" min="0" max="4" step="1" class="w100" v-model="offset"></input></td>
                 </tr>
             </tbody>
         </table>
@@ -1867,12 +1884,3 @@ class ModGui {
 }
 
 let gui = await ModGui.create();
-
-/*
-  TODO -- vertical offsets
-   - [x] when parsing existing tickets
-   - [x] when creating tickets
-   - [ ] when editing tickets
-   - [x] when exporting to JSON
-   - [x] when importing to JSON
-*/

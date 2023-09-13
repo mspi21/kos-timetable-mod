@@ -274,6 +274,5 @@ api.removeTicket('12345-abcde');
 
 ## Missing features / limitations
 
-- Currently, the mod does not detect overlapping tickets and therefore does not adjust row heights. This should be fixed in the next release.
 - Switching between semesters is not supported.
-- Currently, the course and the style of a ticket cannot be changed. This might be added in a future version.
+- Currently, the course and the style of a ticket cannot be changed. This feature might be added in a future version.
