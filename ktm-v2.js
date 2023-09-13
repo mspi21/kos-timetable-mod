@@ -378,7 +378,7 @@ class ModApi {
         };
     }
 
-    _parseRowHeights(grid_template_rows) {
+    /* _parseRowHeights(grid_template_rows) {
         // Example value string:
         // "var(--low-row-height) var(--row-height) calc(var(--row-height) * 2) var(--row-height) calc(var(--row-height) * 2) var(--row-height) var(--low-row-height)"
 
@@ -415,7 +415,7 @@ class ModApi {
             console.warn("grid_template_rows does not end with 'var(--low-row-height)'?!");
 
         return row_heights;
-    }
+    } */
 
     _refreshTickets(predicate) {
         this._tickets.filter(predicate).forEach(ticket => ticket.refreshDom());
@@ -547,9 +547,12 @@ class ModApi {
         const grid = document.querySelector('.schedule-grid');
         if (!grid)
             return console.error(".schedule-grid not found!");
-        const grid_rows = grid.style["grid-template-rows"];
 
-        return this._parseRowHeights(grid_rows);
+        const rem_to_px = parseFloat(getComputedStyle(document.documentElement).fontSize);
+        return getComputedStyle(grid)["grid-template-rows"]
+            .split(' ')
+            .slice(1, 6)
+            .map(val => Math.round(parseFloat(val) / (5.25 * rem_to_px)));
     }
 
     setRowHeights(heights) {
